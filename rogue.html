@@ -3,9 +3,8 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 	<title>Oryx Rogue</title>
 	<script type="text/javascript" src="./includes/crafty.js"></script>
-	<script type="text/javascript" src="./includes/raphael2.js"></script>
 	<script type="text/javascript" src="./includes/jQuery.js"></script>
-	<!--link href='//fonts.googleapis.com/css?family=Gorditas' rel='stylesheet' type='text/css'-->
+	<link href='//fonts.googleapis.com/css?family=Press+Start+2P' rel='stylesheet' type='text/css'>
 	<style>
 		body, html { margin:0; padding: 0; overflow:hidden; font-family:Arial; font-size:20px }
 		#cr-stage { border:2px solid black; margin:5px auto; color:white }
@@ -16,23 +15,13 @@
 
 
 var RENDERING_MODE = 'Canvas';
-var GAME_FONT = '16pt "Arial"';//"Gorditas", cursive';
-var VIEW_WIDTH = 1024;
-var VIEW_HEIGHT = 600;
-var TILE_WIDTH = 32;
-var TILE_HEIGHT = 48;
+var GAME_FONT = '"Press Start 2P", cursive';
+var TILE_WIDTH = 48;
+var TILE_HEIGHT = 72;
+var VIEW_WIDTH = 20*TILE_WIDTH;
+var VIEW_HEIGHT = 8*TILE_HEIGHT;
 
 var g_game = {};
-
-var MAP = [
-	'0000000x00000000',
-	'0000000xxxxx0000',
-	'00000000000x0000',
-	'0000000x000x0000',
-	'0000000x000x0000',
-	'0000000xxxxx0000',
-	'0000000000000000'
-];
 
 window.addEventListener("load", function(event) {
 
@@ -43,6 +32,7 @@ window.addEventListener("load", function(event) {
 							left: pos.left });
 	$('#imgfighterBox').css({ top: pos.top,// + $('#cr-stage').height() - $('#imgfighterBox').height(), 
 							left: pos.left + $('#cr-stage').width() - $('#imgfighterBox').width() });
+	$('#divOverlay').css({ width: $('#cr-stage').width(), height: $('#cr-stage').height(), left: pos.left+2, top: pos.top+2 });
 
 	doCraftyInitialization();
 							
@@ -62,11 +52,13 @@ function doCraftyInitialization() {
 	Crafty.c('Mob', {
 		locX: 0,
 		locY: 0,
-		health: 2,
+		health: 10,
 		maxHealth: 10,
-		mana: 2,
+		mana: 4,
 		maxMana: 4,
 		xpVal: 1,
+		offense: 1,
+		defense: 1,
 
 		Mob: function(x, y, type) {
 			this.requires('2D, ' + RENDERING_MODE + ', Collision, ' + type.toLowerCase())
@@ -86,6 +78,13 @@ function doCraftyInitialization() {
 			if (walls) {
 				this.moveMob({ x: 0- movement.x, y: 0 - movement.y});
 			}
+			else {
+				var mobs = this.hit('Mob');
+				if (mobs) {
+					this.attackMob(mobs[0].obj);
+					this.moveMob({ x: 0- movement.x, y: 0 - movement.y});
+				}
+			}
 		},
 		takeDamage: function(amt, from) {
 
@@ -97,6 +96,9 @@ function doCraftyInitialization() {
 				this.destroy();
 				from.addXP(this.xpVal);
 			}
+		},
+		calcDamageTo: function(mob) {
+			return 1 + Math.floor(Math.random() * this.offense * 3);
 		}
 	});
 
@@ -104,10 +106,10 @@ function doCraftyInitialization() {
 	
 		DamageText: function(x, y, amt) {
 			this.requires('2D, ' + RENDERING_MODE + ', Text, Tween')
-				.attr({ w: 20, h: 20, x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100 })
-				.textColor('#BE2633', 1)
-				.text((amt > 0 ? '-' : '') + amt)
-				.textFont({ size: "16px", weight: 'bold' })
+				.attr({ w: 20, h: 20, x: x*TILE_WIDTH + TILE_WIDTH/2, y: y*TILE_HEIGHT, z: 100 })
+				.textColor((amt > 0 ?'#BE2633' : '#A3CE27'), 1)
+				.text(amt)
+				.textFont({ size: "10pt", weight: 'bold', family: GAME_FONT })
 				.tween({ y: y*TILE_HEIGHT - 48 }, 25)
 				.bind('TweenEnd', function() {
 					this.destroy();
@@ -121,9 +123,40 @@ function doCraftyInitialization() {
 	
 		Creature: function(x, y, type) {
 			this.requires('Mob')
-				.Mob(x, y, type)
+				.bind('EnterFrame', function(frameObj) {
+					if ((frameObj.frame + this.fuzzer) % 50 == 0) {
+						var players = Crafty('Player');
+						var chase = undefined;
+						var closestDist = 10000;
+						for (var i=0;i<players.length;i++) {
+							var dx = Math.abs(Crafty(players[i]).locX - this.locX);
+							var dy = Math.abs(Crafty(players[i]).locY - this.locY);
+							var dist = dx + dy;
+							if (dx <= 10 && dy <= 10 && dist < closestDist) {
+								chase = Crafty(players[i]);
+								closestDist = dist;
+							}
+						}
+						if (chase) {
+							var dx = chase.locX - this.locX;
+							var dy = chase.locY - this.locY;
+							var movement = { x: (dx ? Math.abs(dx)/dx : 0), y: (dy ? Math.abs(dy)/dy : 0) };
+							this.moveMob(movement);
+						}
+					}
+				}).Mob(x, y, type)
 		
+			this.fuzzer = Math.floor(Math.random() * 50);
+			
 			return this;
+		},
+		addXP: function(amt) {
+			return;
+		},
+		attackMob: function(mob) {
+			if (mob.has('Player')) {
+				mob.takeDamage(this.calcDamageTo(mob), this);
+			}
 		}
 	});
  	
@@ -135,16 +168,16 @@ function doCraftyInitialization() {
 			this.requires('Keyboard, Mob')
 				.bind('KeyDown', function(evt) {
 					var movement = {x: 0, y: 0};
-					if (evt.key == Crafty.keys[controls.charAt(1)]) {
+					if (evt.key == controls.charCodeAt(1)) {
 						movement.x = -1;
 					}
-					else if (evt.key == Crafty.keys[controls.charAt(3)]) {
+					else if (evt.key == controls.charCodeAt(3)) {
 						movement.x = 1;
 					}
-					else if (evt.key == Crafty.keys[controls.charAt(0)]) {
+					else if (evt.key == controls.charCodeAt(0)) {
 						movement.y = -1;
 					}
-					else if (evt.key == Crafty.keys[controls.charAt(2)]) {
+					else if (evt.key == controls.charCodeAt(2)) {
 						movement.y = 1;
 					}
 					else {
@@ -154,9 +187,12 @@ function doCraftyInitialization() {
 				}).bind('Move', function() {
 					centerOnPlayers();
 				}).bind('EnterFrame', function(frameObj) {
-					if (frameObj.frame % 20 == 0) {
-						this.health = Math.min(this.maxHealth, this.health + 1);
+					if (frameObj.frame % 19 == 0) {
 						this.mana = Math.min(this.maxMana, this.mana + 1);
+						this.showHealth(type);
+					}
+					else if (frameObj.frame % 51 == 0) {
+						this.health = Math.min(this.maxHealth, this.health + 1);
 						this.showHealth(type);
 					}
 				
@@ -176,7 +212,12 @@ function doCraftyInitialization() {
 				this.$manaBar = $('#div' + type + 'Mana');
 				this.$xpBar = $('#div' + type + 'XP');
 				this.$txtLevel = $('#div' + type + 'LevelText');
-				this.$txtLevel.css({ left: this.posCharBox.left + 28*3, top: this.posCharBox.top + 37*3 });
+				this.$txtLevel.css({ left: this.posCharBox.left + 28*3, top: this.posCharBox.top + 40*3, 'font-family': GAME_FONT, 'font-size': '10pt' });
+				this.$txtOffense = $('#div' + type + 'AttackText');
+				this.$txtOffense.css({ left: this.posCharBox.left + 45*3, top: this.posCharBox.top + 18*3, 'font-family': GAME_FONT, 'font-size': '10pt' });
+				this.$txtDefense = $('#div' + type + 'DefenseText');
+				this.$txtDefense.css({ left: this.posCharBox.left + 66*3, top: this.posCharBox.top + 18*3, 'font-family': GAME_FONT, 'font-size': '10pt' });
+
 				if (type == 'wizard') {
 					this.$spellProgress = $('#divwizardSpellProgress');
 				}
@@ -200,6 +241,8 @@ function doCraftyInitialization() {
 			var width = Math.floor(60 * (this.xp - subtract)/(divisor - subtract));
 			this.$xpBar.css({ width: width, left: this.posCharBox.left + 3*3, top: this.posCharBox.top + 40*3 });
 			this.$txtLevel.text(this.level);
+			this.$txtOffense.text(this.offense);
+			this.$txtDefense.text(this.defense);
 			/*if (this.$spellProgress) {
 				width = Math.floor(48 * this.mana/4);
 				if (this.mana > 4 && this.mana <= 12) {
@@ -237,6 +280,7 @@ function doCraftyInitialization() {
 				level = 2;
 			
 			if (this.level != level) {
+				this.offense = level;
 				// ding!
 			}
 			this.level = level;
@@ -278,6 +322,9 @@ function doCraftyInitialization() {
 			else {
 				this.moveMob(movement);
 			}
+		},
+		attackMob: function(mob) {
+			return;
 		}
 	});
 
@@ -292,10 +339,15 @@ function doCraftyInitialization() {
 		},
 		performMove: function(movement) {
 			this.moveMob(movement);
-			var victims = this.hit('Creature');
+			/*var victims = this.hit('Creature');
 			if (victims) {
 				victims[0].obj.takeDamage(6, this);
 				this.moveMob({ x: 0- movement.x, y: 0 - movement.y});
+			}*/
+		},
+		attackMob: function(mob) {
+			if (mob.has('Creature')) {
+				mob.takeDamage(this.calcDamageTo(mob), this);
 			}
 		}
 	});
@@ -363,23 +415,24 @@ function doCraftyInitialization() {
 	
 	
 	Crafty.scene("main", function () {
-		Crafty.background("#1B2632");		
+		Crafty.background("#000");		
 
 		g_game.fighter = Crafty.e('Fighter')
-			.Fighter(2, 2, 'IJKL');
+			.Fighter(2, 2, String.fromCharCode(38) + String.fromCharCode(37) + String.fromCharCode(40) + String.fromCharCode(39));
 
 		g_game.wizard = Crafty.e('Wizard')
 			.Wizard(2, 3, 'WASD');
 		
 		centerOnPlayers();
 		
-			
-		for (var y=0;y<MAP.length;y++) {
-			for (var x=0;x<MAP[y].length;x++) {
-				var tile = MAP[y].charAt(x);
-				if (tile == 'x') {
+		Dungeon.Generate();
+		
+		for (var y=0;y<Dungeon.map_size;y++) {
+			for (var x=0;x<Dungeon.map_size;x++) {
+				var tile = Dungeon.map[x][y];
+ 				if (tile == 2) {
 					var sprite = 'wall';
-					if (MAP[y+1] && MAP[y+1][x] == 'x') {
+					if (Dungeon.map[x][y+1] && Dungeon.map[x][y+1] == 2) {
 						sprite = 'ceiling';
 					}
 					
@@ -387,13 +440,19 @@ function doCraftyInitialization() {
 						.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
 						.collision();
 				}
+				else if (tile == 1) {
+					Crafty.e('2D, ' + RENDERING_MODE + ', floor')
+						.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 1});
+				}
 			}
 		}
-		for (var y=MAP.length;y<MAP.length + 10;y++) {
-			for (var x=0;x<MAP[0].length;x++) {
-				if (Math.random() < 0.2) {
-					Crafty.e('Creature')
-						.Creature(x, y, 'orc');
+		for (var y=0;y<Dungeon.map_size;y++) {
+			for (var x=0;x<Dungeon.map_size;x++) {
+				if (!(y<10 && x<10)) {		// not in first room, please
+					if (Dungeon.map[x][y] == 1 && Math.random() < 0.05) {
+						Crafty.e('Creature')
+							.Creature(x, y, 'orc');
+					}
 				}
 			}
 		}
@@ -426,7 +485,8 @@ function doCraftyInitialization() {
 
 			Crafty.sprite(1, './images/tiles.png', {
 				wall: [0, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				ceiling: [7*TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT]
+				ceiling: [7*TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT],
+				floor: [8*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 			});
 
 		
@@ -439,6 +499,153 @@ function doCraftyInitialization() {
 
 }
 		
+// modified code from "Big Bad Wofl"
+// http://bigbadwofl.me/random-dungeon-generator/	
+var Dungeon = {
+    map: null,
+    map_size: 64,
+    rooms: [],
+    Generate: function () {
+        this.map = [];
+        for (var x = 0; x < this.map_size; x++) {
+            this.map[x] = [];
+            for (var y = 0; y < this.map_size; y++) {
+                this.map[x][y] = 0;
+            }
+        }
+
+        var room_count = Helpers.GetRandom(10, 20);
+        var min_size = 5;
+        var max_size = 15;
+
+        for (var i = 0; i < room_count; i++) {
+            var room = {};
+
+            room.x = Helpers.GetRandom(1, this.map_size - max_size - 1);
+            room.y = Helpers.GetRandom(1, this.map_size - max_size - 1);
+            room.w = Helpers.GetRandom(min_size, max_size);
+            room.h = Helpers.GetRandom(min_size, max_size);
+
+            if (this.DoesCollide(room)) {
+                i--;
+                continue;
+            }
+            room.w--;
+            room.h--;
+
+            this.rooms.push(room);
+        }
+
+        this.SquashRooms();
+
+        for (i = 0; i < room_count; i++) {
+            var roomA = this.rooms[i];
+            var roomB = this.FindClosestRoom(roomA);
+
+            var pointA = {
+                x: Helpers.GetRandom(roomA.x, roomA.x + roomA.w),
+                y: Helpers.GetRandom(roomA.y, roomA.y + roomA.h)
+            };
+            var pointB = {
+                x: Helpers.GetRandom(roomB.x, roomB.x + roomB.w),
+                y: Helpers.GetRandom(roomB.y, roomB.y + roomB.h)
+            };
+
+            while ((pointB.x != pointA.x) || (pointB.y != pointA.y)) {
+                if (pointB.x != pointA.x) {
+                    if (pointB.x > pointA.x) pointB.x--;
+                    else pointB.x++;
+                } else if (pointB.y != pointA.y) {
+                    if (pointB.y > pointA.y) pointB.y--;
+                    else pointB.y++;
+                }
+
+                this.map[pointB.x][pointB.y] = 1;
+            }
+        }
+
+        for (i = 0; i < room_count; i++) {
+            var room = this.rooms[i];
+            for (var x = room.x; x < room.x + room.w; x++) {
+                for (var y = room.y; y < room.y + room.h; y++) {
+                    this.map[x][y] = 1;
+                }
+            }
+        }
+
+        for (var x = 0; x < this.map_size; x++) {
+            for (var y = 0; y < this.map_size; y++) {
+                if (this.map[x][y] == 1) {
+                    for (var xx = x - 1; xx <= x + 1; xx++) {
+                        for (var yy = y - 1; yy <= y + 1; yy++) {
+                            if (this.map[xx][yy] == 0) this.map[xx][yy] = 2;
+                        }
+                    }
+                }
+            }
+        }
+    },
+    FindClosestRoom: function (room) {
+        var mid = {
+            x: room.x + (room.w / 2),
+            y: room.y + (room.h / 2)
+        };
+        var closest = null;
+        var closest_distance = 1000;
+        for (var i = 0; i < this.rooms.length; i++) {
+            var check = this.rooms[i];
+            if (check == room) continue;
+            var check_mid = {
+                x: check.x + (check.w / 2),
+                y: check.y + (check.h / 2)
+            };
+            var distance = Math.min(Math.abs(mid.x - check_mid.x) - (room.w / 2) - (check.w / 2), Math.abs(mid.y - check_mid.y) - (room.h / 2) - (check.h / 2));
+            if (distance < closest_distance) {
+                closest_distance = distance;
+                closest = check;
+            }
+        }
+        return closest;
+    },
+    SquashRooms: function () {
+        for (var i = 0; i < 10; i++) {
+            for (var j = 0; j < this.rooms.length; j++) {
+                var room = this.rooms[j];
+                while (true) {
+                    var old_position = {
+                        x: room.x,
+                        y: room.y
+                    };
+                    if (room.x > 1) room.x--;
+                    if (room.y > 1) room.y--;
+                    if ((room.x == 1) && (room.y == 1)) break;
+                    if (this.DoesCollide(room, j)) {
+                        room.x = old_position.x;
+                        room.y = old_position.y;
+                        break;
+                    }
+                }
+            }
+        }
+    },
+    DoesCollide: function (room, ignore) {
+        for (var i = 0; i < this.rooms.length; i++) {
+            if (i == ignore) continue;
+            var check = this.rooms[i];
+            if (!((room.x + room.w < check.x) || (room.x > check.x + check.w) || (room.y + room.h < check.y) || (room.y > check.y + check.h))) return true;
+        }
+
+        return false;
+    }
+}
+
+var Helpers = {
+    GetRandom: function (low, high) {
+        return~~ (Math.random() * (high - low)) + low;
+    }
+};
+
+
 	</script>
 </head>
 <body>
@@ -449,12 +656,17 @@ function doCraftyInitialization() {
 	<div id="divwizardXP" style="background: #EB8931;position: absolute;width: 30px; height: 9px;z-index: 11000"></div> 
 	<div id="divwizardSpellProgress" style="background-image: url(./images/spellProgress.png);height: 48px; width: 240px;position: absolute;z-index: 11000"></div> 
 	<div id="divwizardLevelText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divwizardAttackText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divwizardDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	
 	<img id="imgfighterBox" src="./images/charbox_fighter.png" style="position: absolute;z-index: 10000;" />
 	<div id="divfighterHealth" style="background: #BE2633;position: absolute;width: 33px; height: 30px;z-index: 9000" ></div> 
 	<div id="divfighterMana" style="background: #005784;position: absolute;width: 30px; height: 42px;z-index: 9000" ></div> 
 	<div id="divfighterXP" style="background: #EB8931;position: absolute;width: 30px; height: 9px;z-index: 11000"></div> 
 	<div id="divfighterLevelText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divfighterAttackText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divfighterDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	
-
+	<div id="divOverlay" style="background-image: url(./images/mesh.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
+	
 </body>
