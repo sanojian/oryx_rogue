@@ -38,7 +38,7 @@ window.GAME = {
 		sword: {
 			classes: ['fighter'],
 			defense: [0, 0, 0, 0, 0],
-			offense: [2, 4, 8, 16, 32],
+			offense: [6, 12, 18, 30, 48],
 			slot: 5,
 			z: 90
 		},
@@ -53,7 +53,14 @@ window.GAME = {
 			classes: ['wizard'],
 			defense: [1, 2, 3, 4, 5],
 			offense: [1, 2, 4, 6, 10],
-			slot: 0,
+			slot: 1,
+			z: 110
+		},
+		staff: {
+			classes: ['wizard'],
+			defense: [0, 0, 0, 0, 0],
+			offense: [1, 2, 4, 8, 16],
+			slot: 2,
 			z: 110
 		}
 	}

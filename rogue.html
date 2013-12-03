@@ -59,8 +59,9 @@ function doCraftyInitialization() {
 		mana: 4,
 		maxMana: 4,
 		xpVal: 1,
-		offense: 1,
-		defense: 1,
+		offense: 6,
+		defense: 10,
+		level: 1,
 
 		Mob: function(x, y, type) {
 			this.requires('2D, ' + RENDERING_MODE + ', Collision, ' + type.toLowerCase())
@@ -90,27 +91,41 @@ function doCraftyInitialization() {
 		},
 		takeDamage: function(amt, from) {
 
-			Crafty.e('DamageText')
-				.DamageText(this.locX, this.locY, amt);
+			Crafty.e('FloatingText')
+				.FloatingText(this.locX, this.locY, amt, '#BE2633');
 			
 			this.health = Math.max(0, this.health - amt);
 			if (this.health <= 0) {
-				this.destroy();
 				from.addXP(this.xpVal);
+				// loot
+				if (Math.random() < 0.2) {
+					var item = Math.floor(Math.random() * 9);
+					var i = 0;
+					for (var key in GAME.EQUIPMENT) {
+						if (i == item) {
+							Crafty.e('Treasure').Treasure(this.locX, this.locY, key, this.level);
+						}
+						i++;
+					}
+				}
+				this.destroy();
 			}
 		},
 		calcDamageTo: function(mob) {
-			return 1 + Math.floor(Math.random() * this.offense * 3);
+			var dmg = 1 + Math.floor(Math.random() * this.offense);
+			var reduction = Math.random()*mob.defense/(30 * mob.level);
+			dmg = Math.floor(dmg - dmg*reduction);
+			return Math.max(1, dmg);
 		}
 	});
 
-	Crafty.c('DamageText', {
+	Crafty.c('FloatingText', {
 	
-		DamageText: function(x, y, amt) {
+		FloatingText: function(x, y, txt, color) {
 			this.requires('2D, ' + RENDERING_MODE + ', Text, Tween')
-				.attr({ w: 20, h: 20, x: x*TILE_WIDTH + TILE_WIDTH/2, y: y*TILE_HEIGHT, z: 100 })
-				.textColor((amt > 0 ?'#BE2633' : '#A3CE27'), 1)
-				.text(amt)
+				.attr({ w: 20, h: 20, x: x*TILE_WIDTH + TILE_WIDTH/2, y: y*TILE_HEIGHT, z: 200 })
+				.textColor(color, 1)
+				.text(txt)
 				.textFont({ size: "10pt", weight: 'bold', family: GAME_FONT })
 				.tween({ y: y*TILE_HEIGHT - 48 }, 25)
 				.bind('TweenEnd', function() {
@@ -219,9 +234,13 @@ function doCraftyInitialization() {
 				this.$txtOffense.css({ left: this.posCharBox.left + 45*3, top: this.posCharBox.top + 18*3, 'font-family': GAME_FONT, 'font-size': '10pt' });
 				this.$txtDefense = $('#div' + type + 'DefenseText');
 				this.$txtDefense.css({ left: this.posCharBox.left + 66*3, top: this.posCharBox.top + 18*3, 'font-family': GAME_FONT, 'font-size': '10pt' });
+				this.$txtHealth = $('#div' + type + 'HealthText');
+				this.$txtHealth.css({ left: this.posCharBox.left + 50*3, top: this.posCharBox.top + 42*3, 'font-family': GAME_FONT, 'font-size': '10pt' });
 
 				if (type == 'wizard') {
 					this.$spellProgress = $('#divwizardSpellProgress');
+					this.$txtMana = $('#div' + type + 'ManaText');
+					this.$txtMana.css({ left: this.posCharBox.left + 58*3, top: this.posCharBox.top + 29*3, 'font-family': GAME_FONT, 'font-size': '10pt' });
 				}
 				
 				for (var key in this.equipment) {
@@ -253,6 +272,10 @@ function doCraftyInitialization() {
 			this.$txtLevel.text(this.level);
 			this.$txtOffense.text(this.offense);
 			this.$txtDefense.text(this.defense);
+			this.$txtHealth.text(this.health);
+			if (this.$txtMana) {
+				this.$txtMana.text(this.mana);
+			}
 			/*if (this.$spellProgress) {
 				width = Math.floor(48 * this.mana/4);
 				if (this.mana > 4 && this.mana <= 12) {
@@ -290,7 +313,7 @@ function doCraftyInitialization() {
 				level = 2;
 			
 			if (this.level != level) {
-				this.offense = level;
+				//this.offense = level;
 				// ding!
 			}
 			this.level = level;
@@ -305,6 +328,10 @@ function doCraftyInitialization() {
 						this[treasure.treasureType].sprite(GAME.EQUIPMENT[treasure.treasureType].slot*TILE_WIDTH, treasure.treasureLevel*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
 						this.equipment[treasure.treasureType] = treasure.treasureLevel;
 						treasure.destroy();
+						Crafty.e('FloatingText').FloatingText(this.locX-1, this.locY, 
+							'A+' + GAME.EQUIPMENT[treasure.treasureType].offense[treasure.treasureLevel]
+							+ '  D+' + GAME.EQUIPMENT[treasure.treasureType].defense[treasure.treasureLevel], '#A3CE27');
+
 						this.calcStats();
 					}
 				}
@@ -356,7 +383,9 @@ function doCraftyInitialization() {
 			this.class = 'wizard';
 
 			this.equipment = {
-				robe: 0
+				robe: 0,
+				hat: 0,
+				staff: 0
 			}
 			
 			this.Player(x, y, 'wizard', controls);
@@ -384,7 +413,7 @@ function doCraftyInitialization() {
 
 	Crafty.c('Treasure', {
 		Treasure: function(x, y, type, level) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, ' + type + '_' + level)
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, icon_' + type + '_' + level)
 				.attr({ x: x * TILE_WIDTH, y: y * TILE_HEIGHT, z: 90 })
 				.collision();
 		
@@ -500,7 +529,7 @@ function doCraftyInitialization() {
 		
 		Crafty.e('Treasure').Treasure(4, 3, 'pants', 1);
 		Crafty.e('Treasure').Treasure(4, 4, 'helm', 4);
-		Crafty.e('Treasure').Treasure(5, 5, 'robe', 2, ['wizard']);
+		Crafty.e('Treasure').Treasure(5, 5, 'staff', 3);
 		
 		centerOnPlayers();
 		
@@ -529,8 +558,16 @@ function doCraftyInitialization() {
 			for (var x=0;x<Dungeon.map_size;x++) {
 				if (!(y<10 && x<10)) {		// not in first room, please
 					if (Dungeon.map[x][y] == 1 && Math.random() < 0.05) {
-						Crafty.e('Creature')
-							.Creature(x, y, 'orc');
+						var rand = Math.random();
+						if (rand < 0.6) {
+							Crafty.e('Creature').Creature(x, y, 'orc');
+						}
+						else if (rand < 0.8) {
+							Crafty.e('Creature').Creature(x, y, 'orc_archer');
+						}
+						else {
+							Crafty.e('Creature').Creature(x, y, 'spider');
+						}
 					}
 				}
 			}
@@ -546,16 +583,8 @@ function doCraftyInitialization() {
 			//.css({ "text-align": "center", "font-family": GAME_FONT, "font-size": "44px" });
 		} catch (ex) {;}
 		
-		Crafty.load(['./images/oryx_fighter.png', './images/oryx_wizard.png', './images/oryx_roguelike_16x24.png'], function() {
-		
-		
-			Crafty.sprite(1, './images/oryx_fighter.png', {
-				fighter: [0, 0, TILE_WIDTH, TILE_HEIGHT]
-			});
-			Crafty.sprite(1, './images/oryx_wizard.png', {
-				wizard: [0, 0, TILE_WIDTH, TILE_HEIGHT]
-			});
-			
+		Crafty.load(['./images/oryx_roguelike_16x24.png'], function() {
+					
 			Crafty.sprite(1, './images/equipment_fighter.png', {
 				shirt_0: [0*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				shirt_1: [0*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
@@ -589,10 +618,73 @@ function doCraftyInitialization() {
 				sword_4: [5*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
 			});
 
+			Crafty.sprite(1, './images/equip_icons_fighter.png', {
+				icon_shirt_0: [0*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shirt_1: [0*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shirt_2: [0*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shirt_3: [0*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shirt_4: [0*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_pants_0: [1*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_pants_1: [1*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_pants_2: [1*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_pants_3: [1*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_pants_4: [1*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_helm_0: [2*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_helm_1: [2*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_helm_2: [2*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_helm_3: [2*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_helm_4: [2*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_boots_0: [3*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_boots_1: [3*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_boots_2: [3*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_boots_3: [3*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_boots_4: [3*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shield_0: [4*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shield_1: [4*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shield_2: [4*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shield_3: [4*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_shield_4: [4*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_sword_0: [5*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_sword_1: [5*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_sword_2: [5*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_sword_3: [5*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_sword_4: [5*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
+			});
+			
 			Crafty.sprite(1, './images/equipment_wizard.png', {
 				robe_0: [0*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				robe_1: [0*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				robe_2: [0*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
+				robe_2: [0*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				robe_3: [0*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				robe_4: [0*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				hat_0: [1*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				hat_1: [1*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				hat_2: [1*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				hat_3: [1*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				hat_4: [1*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				staff_0: [2*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				staff_1: [2*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				staff_2: [2*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				staff_3: [2*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				staff_4: [2*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
+			});
+			
+			Crafty.sprite(1, './images/equip_icons_wizard.png', {
+				icon_robe_0: [0*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_robe_1: [0*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_robe_2: [0*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_robe_3: [0*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_robe_4: [0*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_hat_0: [1*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_hat_1: [1*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_hat_2: [1*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_hat_3: [1*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_hat_4: [1*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_staff_0: [2*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_staff_1: [2*TILE_WIDTH, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_staff_2: [2*TILE_WIDTH, 2*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_staff_3: [2*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				icon_staff_4: [2*TILE_WIDTH, 4*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
 			});
 			
 			Crafty.sprite(1, './images/oryx_roguelike_16x24.png', {
@@ -600,7 +692,9 @@ function doCraftyInitialization() {
 				wizard: [12*TILE_WIDTH, 24*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				magic_missle: [5*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				fireball: [8*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
+				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				orc_archer: [6*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				spider: [8*TILE_WIDTH, 27*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
 			});
 
 			Crafty.sprite(1, './images/tiles.png', {
@@ -629,10 +723,12 @@ function doCraftyInitialization() {
 	<div id="divwizardHealth" style="background: #BE2633;position: absolute;width: 33px; height: 30px;z-index: 9000"></div> 
 	<div id="divwizardMana" style="background: #005784;position: absolute;width: 30px; height: 42px;z-index: 9000"></div> 
 	<div id="divwizardXP" style="background: #EB8931;position: absolute;width: 30px; height: 9px;z-index: 11000"></div> 
-	<div id="divwizardSpellProgress" style="background-image: url(./images/spellProgress.png);height: 48px; width: 240px;position: absolute;z-index: 11000"></div> 
+	<!--div id="divwizardSpellProgress" style="background-image: url(./images/spellProgress.png);height: 48px; width: 240px;position: absolute;z-index: 11000"></div--> 
 	<div id="divwizardLevelText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divwizardAttackText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divwizardDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divwizardHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divwizardManaText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	
 	<img id="imgfighterBox" src="./images/charbox_fighter.png" style="position: absolute;z-index: 10000;" />
 	<div id="divfighterHealth" style="background: #BE2633;position: absolute;width: 33px; height: 30px;z-index: 9000" ></div> 
@@ -641,6 +737,7 @@ function doCraftyInitialization() {
 	<div id="divfighterLevelText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterAttackText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divfighterHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	
 	<div id="divOverlay" style="background-image: url(./images/mesh.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
 	
