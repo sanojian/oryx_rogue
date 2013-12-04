@@ -18,10 +18,10 @@
 
 var RENDERING_MODE = 'DOM';//'Canvas';
 var GAME_FONT = '"Press Start 2P", cursive';
-var TILE_WIDTH = 32;
-var TILE_HEIGHT = 48;
+var TILE_WIDTH = 16*3;
+var TILE_HEIGHT = 24*3;
 var VIEW_WIDTH = 28*TILE_WIDTH;
-var VIEW_HEIGHT = 12*TILE_HEIGHT;
+var VIEW_HEIGHT = 10*TILE_HEIGHT;
 
 var g_game = {};
 
@@ -42,8 +42,8 @@ window.addEventListener("load", function(event) {
 
 function centerOnPlayers() {
 	try {
-		var newX = Math.floor((g_game.fighter.locX + g_game.wizard.locX)/2);
-		var newY = Math.floor((g_game.fighter.locY + g_game.wizard.locY)/2);
+		var newX = Math.floor((g_game.fighter.locX + g_game.wizard.locX+1)/2);
+		var newY = Math.floor((g_game.fighter.locY + g_game.wizard.locY+1)/2);
 		Crafty.viewport.x = VIEW_WIDTH/2 - newX * TILE_WIDTH;
 		Crafty.viewport.y = VIEW_HEIGHT/2 - newY * TILE_HEIGHT;
 	} catch(ex) {;}
@@ -60,7 +60,7 @@ function doCraftyInitialization() {
 		maxMana: 4,
 		xpVal: 1,
 		offense: 6,
-		defense: 10,
+		defense: 6,
 		level: 1,
 
 		Mob: function(x, y, type) {
@@ -139,7 +139,7 @@ function doCraftyInitialization() {
 	
 	Crafty.c('Creature', {
 	
-		Creature: function(x, y, type) {
+		Creature: function(x, y, sprite, level) {
 			this.requires('Mob')
 				.bind('EnterFrame', function(frameObj) {
 					if ((frameObj.frame + this.fuzzer) % 50 == 0) {
@@ -162,8 +162,12 @@ function doCraftyInitialization() {
 							this.moveMob(movement);
 						}
 					}
-				}).Mob(x, y, type)
+				}).Mob(x, y, sprite)
 		
+			this.level = level;
+			this.maxHealth = this.health = level * 10;
+			this.offense = level * 6;
+			this.defense = level * 6;
 			this.fuzzer = Math.floor(Math.random() * 50);
 			
 			return this;
@@ -417,9 +421,10 @@ function doCraftyInitialization() {
 
 	Crafty.c('Treasure', {
 		Treasure: function(x, y, type, level) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, icon_' + type + '_' + level)
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, LitObject, icon_' + type + '_' + level)
 				.attr({ x: x * TILE_WIDTH, y: y * TILE_HEIGHT, z: 90 })
-				.collision();
+				.collision()
+				.LitObject();
 		
 			this.treasureType = type;
 			this.treasureLevel = level;
@@ -487,6 +492,9 @@ function doCraftyInitialization() {
 				
 			this.caster = caster;
 				
+			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 4*TILE_WIDTH);
+			this.attach(lightSource);
+
 			return this;
 		}
 	});
@@ -534,7 +542,8 @@ function doCraftyInitialization() {
 					if (frameObj.frame % 11 == 0) {
 						var litObjs = this.hit('LitObject');
 						for (var i=0;i<litObjs.length;i++) {
-							var dist = Math.sqrt(Math.pow(this.x + d/2 - litObjs[i].obj.x, 2) + Math.pow(this.y + d/2 - litObjs[i].obj.y, 2));
+							var dist = Math.sqrt(Math.pow(this.x + d/2 - litObjs[i].obj.x - TILE_WIDTH/2, 2) 
+										+ Math.pow(this.y + d/2 - litObjs[i].obj.y - TILE_HEIGHT/2, 2));
 							litObjs[i].obj.light(0.2 + ((d/2) - dist)/(d/2), frameObj.frame);
 						}
 					}
@@ -619,14 +628,14 @@ function doCraftyInitialization() {
 				if (!(y<10 && x<10)) {		// not in first room, please
 					if (Dungeon.map[x][y] == 1 && Math.random() < 0.05) {
 						var rand = Math.random();
-						if (rand < 0.6) {
-							Crafty.e('Creature').Creature(x, y, 'orc');
+						if (rand < 0.7) {
+							Crafty.e('Creature').Creature(x, y, 'orc', 1);
 						}
-						else if (rand < 0.8) {
-							Crafty.e('Creature').Creature(x, y, 'orc_archer');
+						else if (rand < 0.9) {
+							Crafty.e('Creature').Creature(x, y, 'orc_archer', 1);
 						}
 						else {
-							Crafty.e('Creature').Creature(x, y, 'spider');
+							Crafty.e('Creature').Creature(x, y, 'orc_cheif', 2);
 						}
 					}
 				}
@@ -754,6 +763,7 @@ function doCraftyInitialization() {
 				fireball: [8*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_archer: [6*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				orc_cheif: [8*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				spider: [8*TILE_WIDTH, 27*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 
 				wall: [0*TILE_WIDTH, 13*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
@@ -803,6 +813,6 @@ function doCraftyInitialization() {
 	<div id="divfighterDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	
-	<div id="divOverlay" style="background-image: url(./images/meshx.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
+	<div id="divOverlay" style="background-image: url(./images/meshx3.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
 	
 </body>
