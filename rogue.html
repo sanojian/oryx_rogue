@@ -64,9 +64,10 @@ function doCraftyInitialization() {
 		level: 1,
 
 		Mob: function(x, y, type) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, ' + type.toLowerCase())
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, LitObject, ' + type.toLowerCase())
 				.attr( { x: x * TILE_WIDTH, y: y * TILE_HEIGHT, z: 100 } )
 				.collision()
+				.LitObject()
 			
 			this.locX = x;
 			this.locY = y;
@@ -222,6 +223,9 @@ function doCraftyInitialization() {
 				else {
 					this.maxMana = 16;
 				}
+				
+				var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 12*TILE_WIDTH);
+				this.attach(lightSource);
 				
 				// meters
 				this.posCharBox = $('#img' + type + 'Box').offset();
@@ -512,11 +516,64 @@ function doCraftyInitialization() {
 				}).collision()
 				
 			this.caster = caster;
-				
+
+			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 12*TILE_WIDTH);
+			this.attach(lightSource);
+			
 			return this;
 		}
 	});
 	
+	Crafty.c('LightSource', {
+	
+		LightSource: function(cx, cy, d) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision')
+				.attr( { x: cx - d/2, y: cy - d/2, w: d, h: d } )
+				.collision()
+				.bind('EnterFrame', function(frameObj) {
+					if (frameObj.frame % 11 == 0) {
+						var litObjs = this.hit('LitObject');
+						for (var i=0;i<litObjs.length;i++) {
+							var dist = Math.sqrt(Math.pow(this.x + d/2 - litObjs[i].obj.x, 2) + Math.pow(this.y + d/2 - litObjs[i].obj.y, 2));
+							litObjs[i].obj.light(0.2 + ((d/2) - dist)/(d/2), frameObj.frame);
+						}
+					}
+				})
+				
+			return this;
+		}
+	});
+		
+	Crafty.c('LitObject', {
+
+		LitObject: function() {
+			this.requires('Collision')
+				.collision()
+				.bind('EnterFrame', function(frameObj) {
+					if (frameObj.frame % 13 == 0) {
+						if (this.unlit) {
+							this.alpha = 0.0;
+						}
+						this.unlit = true;
+					}
+				})
+				
+			this.alpha = 0.0;
+			this.currentLightingFrame = 0;
+			
+			return this;
+		},
+		light: function(amt, frame) {
+			if (this.currentLightingFrame == frame) {
+				this.alpha += amt;
+			}
+			else {
+				this.alpha = amt;
+				this.currentLightingFrame = frame;
+			}
+			this.unlit = false;
+		}
+	});
 	
 	Crafty.scene("main", function () {
 		Crafty.background("#000");		
@@ -544,13 +601,16 @@ function doCraftyInitialization() {
 						sprite = 'ceiling';
 					}
 					
-					Crafty.e('2D, ' + RENDERING_MODE + ', Collision, solid, ' + sprite)
+					Crafty.e('2D, ' + RENDERING_MODE + ', Collision, LitObject, solid, ' + sprite)
 						.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
+						.LitObject()
 						.collision();
 				}
 				else if (tile == 1) {
-					Crafty.e('2D, ' + RENDERING_MODE + ', floor')
-						.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 1});
+					Crafty.e('2D, ' + RENDERING_MODE + ', floor, Collision, LitObject')
+						.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 1})
+						.LitObject()
+						.collision();
 				}
 			}
 		}
@@ -694,14 +754,18 @@ function doCraftyInitialization() {
 				fireball: [8*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_archer: [6*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				spider: [8*TILE_WIDTH, 27*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
+				spider: [8*TILE_WIDTH, 27*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+
+				wall: [0*TILE_WIDTH, 13*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				ceiling: [7*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				floor: [9*TILE_WIDTH, 15*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 			});
 
-			Crafty.sprite(1, './images/tiles.png', {
+			/*Crafty.sprite(1, './images/tiles.png', {
 				wall: [0, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				ceiling: [7*TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT],
 				floor: [8*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-			});
+			});*/
 
 		
 			Crafty.scene("main");
@@ -739,6 +803,6 @@ function doCraftyInitialization() {
 	<div id="divfighterDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	
-	<div id="divOverlay" style="background-image: url(./images/mesh.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
+	<div id="divOverlay" style="background-image: url(./images/meshx.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
 	
 </body>
