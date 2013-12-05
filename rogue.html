@@ -127,7 +127,7 @@ function doCraftyInitialization() {
 				.attr({ w: 20, h: 20, x: x*TILE_WIDTH + TILE_WIDTH/2, y: y*TILE_HEIGHT, z: 200 })
 				.textColor(color, 1)
 				.text(txt)
-				.textFont({ size: "10pt", weight: 'bold', family: GAME_FONT })
+				.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
 				.tween({ y: y*TILE_HEIGHT - 48 }, 25)
 				.bind('TweenEnd', function() {
 					this.destroy();
@@ -466,8 +466,8 @@ function doCraftyInitialization() {
 	});
 
 	Crafty.c('Bolt', {
-		speed: 10,
-		range: 400,
+		speed: 5*3,
+		range: 200*3,
 	
 		Bolt: function(x, y, direction, caster) {
 			this.requires('2D, ' + RENDERING_MODE + ', Collision, magic_missle')
@@ -500,12 +500,13 @@ function doCraftyInitialization() {
 	});
 
 	Crafty.c('Fireball', {
-		speed: 8,
-		range: 400,
+		speed: 4*3,
+		range: 200*3,
 	
 		Fireball: function(x, y, direction, caster) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, fireball')
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, fireball, SpriteAnimation')
 				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
+				.animate('burn', [[10*TILE_WIDTH, 8*TILE_HEIGHT], [11*TILE_WIDTH, 8*TILE_HEIGHT]])
 				.bind('EnterFrame', function(frameObj) {
 					this.attr({ x: this.x + direction.x*this.speed, y: this.y + direction.y*this.speed });
 					this.range -= this.speed;
@@ -524,7 +525,8 @@ function doCraftyInitialization() {
 				}).collision()
 				
 			this.caster = caster;
-
+			this.stop().animate('burn', 10, -1);
+			
 			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 12*TILE_WIDTH);
 			this.attach(lightSource);
 			
@@ -759,8 +761,8 @@ function doCraftyInitialization() {
 			Crafty.sprite(1, './images/oryx_roguelike_16x24.png', {
 				fighter: [0*TILE_WIDTH, 24*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				wizard: [12*TILE_WIDTH, 24*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				magic_missle: [5*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				fireball: [8*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				magic_missle: [0*TILE_WIDTH, 10*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				fireball: [10*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_archer: [6*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_cheif: [8*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
