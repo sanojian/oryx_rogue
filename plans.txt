@@ -1,0 +1,13 @@
+PLANS
+
+Wizard
+--------
+-sleep spell
+-lighting spell
+
+
+Fighter
+---------
+-aoe attack
+-shield ability
+-paladin?

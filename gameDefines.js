@@ -45,21 +45,21 @@ window.GAME = {
 		robe: {
 			classes: ['wizard'],
 			defense: [2, 3, 5, 8, 12],
-			offense: [2, 4, 8, 16, 32],
+			offense: [0, 0, 0, 0, 0],
 			slot: 0,
 			z: 110
 		},
 		hat: {
 			classes: ['wizard'],
 			defense: [1, 2, 3, 4, 5],
-			offense: [1, 2, 4, 6, 10],
+			offense: [0, 0, 0, 0, 0],
 			slot: 1,
 			z: 110
 		},
 		staff: {
 			classes: ['wizard'],
 			defense: [0, 0, 0, 0, 0],
-			offense: [1, 2, 4, 8, 16],
+			offense: [1, 2, 3, 5, 8],
 			slot: 2,
 			z: 110
 		}
