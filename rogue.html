@@ -45,6 +45,9 @@ window.addEventListener("load", function(event) {
 							left: pos.left + $('#cr-stage').width() - $('#imgfighterBox').width() });
 	$('#divOverlay').css({ width: $('#cr-stage').width(), height: $('#cr-stage').height(), left: pos.left+2, top: pos.top+2 });
 
+	$('#divMiniMap').css({ width: 64*3, height: 64*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - 64*3 - 3 });
+	
+	
 	doCraftyInitialization();
 							
 });
@@ -721,6 +724,23 @@ function doCraftyInitialization() {
 			}
 		}
 		
+		// draw minimap
+		for (var y=0;y<Dungeon.map_size;y++) {
+			for (var x=0;x<Dungeon.map_size;x++) {
+				var tile = Dungeon.map[x][y];
+				var color = '#000';
+				if (tile == 1) {
+					color = '#005784';
+				}
+				else if (tile == 2) {
+					color = '#31A2F2';
+				}
+				$('#divMiniMap').append('<span style="background: ' + color + '; width: 3px; height: 3px;"></span>');
+			}
+			$('#divMiniMap').append('<br>');
+		}
+
+		
 	});
 
 	Crafty.scene("loading", function () {
@@ -898,6 +918,8 @@ function doCraftyInitialization() {
 	<div id="divfighterAttackText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	
+	<div id="divMiniMap" style="position: absolute;z-index: 11000; color: #9D9D9D;border: 2px solid;"></div>
 	
 	<div id="divOverlay" style="background-image: url(./images/meshx3.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
 	
