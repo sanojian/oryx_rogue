@@ -42,6 +42,8 @@ var g_game = {
 
 window.addEventListener("load", function(event) {
 
+	VIEW_WIDTH = $(document).width();
+	VIEW_HEIGHT = $(document).height();
 	Crafty.init(VIEW_WIDTH, VIEW_HEIGHT);
 	
 	var pos = $('#cr-stage').offset();
@@ -51,7 +53,7 @@ window.addEventListener("load", function(event) {
 							left: pos.left + $('#cr-stage').width() - $('#imgfighterBox').width() });
 	$('#divOverlay').css({ width: $('#cr-stage').width(), height: $('#cr-stage').height(), left: pos.left+2, top: pos.top+2 });
 
-	$('#canvasMiniMap').css({ width: 64*3, height: 64*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - 64*3 - 3 });
+	$('#canvasMiniMap').css({ width: 64*3, height: 64*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - 64*3 - 6 });
 	
 	
 	doCraftyInitialization();
@@ -82,13 +84,17 @@ function updateMiniMap() {
 				else if (tile == 2) {
 					context.fillStyle = '#31A2F2';
 				}
-				context.fillRect(x*3,y*3,3,3);
+				context.fillRect(x*6,y*3,6,3);
 			}
 		}
+		context.fillStyle = '#44891A';
+		context.fillRect((g_game.entrance.x/TILE_WIDTH)*6,(g_game.entrance.x/TILE_WIDTH)*3,6,3);
+		context.fillStyle = '#BE2633';
+		context.fillRect((g_game.exit.x/TILE_WIDTH)*6,(g_game.exit.x/TILE_WIDTH)*3,6,3);
 		
 		context.fillStyle = '#fff';
-		context.fillRect(g_game.fighter.locX*3,g_game.fighter.locY*3,3,3);
-		context.fillRect(g_game.wizard.locX*3,g_game.wizard.locY*3,3,3);
+		context.fillRect(g_game.fighter.locX*6,g_game.fighter.locY*3,6,3);
+		context.fillRect(g_game.wizard.locX*6,g_game.wizard.locY*3,6,3);
 
 }
 
@@ -691,11 +697,11 @@ function doCraftyInitialization() {
 						sprite = 'ceiling';
 					}
 					if (!bEntrancePlaced && sprite == 'wall') {
-						var bEntrance = Crafty.e('2D, ' + RENDERING_MODE + ', Collision, LitObject, solid, entrance')
+						g_game.entrance = Crafty.e('2D, ' + RENDERING_MODE + ', Collision, LitObject, solid, entrance')
 							.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 130 })
 							.LitObject()
 							.collision();
-						bEntrance.bIamEntrance = true;
+						g_game.entrance.bIamEntrance = true;
 						bEntrancePlaced = true;
 					}
 					else {
@@ -733,11 +739,12 @@ function doCraftyInitialization() {
 						var rand = Math.random();
 						if (rand < 0.7) {
 							if (!bExitPlaced) {
-								Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
-									.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 1})
+								g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
+									.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 130})
 									.LitObject()
 									.collision();
 								bExitPlaced = true;
+								g_game.exit.bIAmExit = true;
 							}
 							else {
 								Crafty.e('Creature').Creature(x, y, 'orc', 1);
@@ -893,7 +900,7 @@ function doCraftyInitialization() {
 				ceiling: [7*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				floor: [9*TILE_WIDTH, 15*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				entrance: [8*TILE_WIDTH, 14*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				stairs: [14*TILE_WIDTH, 16*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				exit: [14*TILE_WIDTH, 16*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 			});
 
 			/*Crafty.sprite(1, './images/tiles.png', {
