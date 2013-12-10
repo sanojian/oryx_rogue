@@ -10,6 +10,12 @@
 	<style>
 		body, html { margin:0; padding: 0; overflow:hidden; font-family:Arial; font-size:20px }
 		#cr-stage { border:2px solid black; margin:5px auto; color:white }
+		
+		.miniMapSquare {
+			width: 3px; 
+			height: 3px;
+			display: block;
+		}
 	</style>
 	
 	<script language="javascript">
@@ -45,7 +51,7 @@ window.addEventListener("load", function(event) {
 							left: pos.left + $('#cr-stage').width() - $('#imgfighterBox').width() });
 	$('#divOverlay').css({ width: $('#cr-stage').width(), height: $('#cr-stage').height(), left: pos.left+2, top: pos.top+2 });
 
-	$('#divMiniMap').css({ width: 64*3, height: 64*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - 64*3 - 3 });
+	$('#canvasMiniMap').css({ width: 64*3, height: 64*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - 64*3 - 3 });
 	
 	
 	doCraftyInitialization();
@@ -58,7 +64,32 @@ function centerOnPlayers() {
 		var newY = Math.floor((g_game.fighter.locY + g_game.wizard.locY+1)/2);
 		Crafty.viewport.x = VIEW_WIDTH/2 - newX * TILE_WIDTH;
 		Crafty.viewport.y = VIEW_HEIGHT/2 - newY * TILE_HEIGHT;
+		updateMiniMap();
 	} catch(ex) {;}
+}
+
+function updateMiniMap() {
+		var drawingCanvas = document.getElementById('canvasMiniMap');
+		var context = drawingCanvas.getContext('2d');
+		
+		for (var y=0;y<Dungeon.map_size;y++) {
+			for (var x=0;x<Dungeon.map_size;x++) {
+				var tile = Dungeon.map[x][y];
+				context.fillStyle = '#000';
+				if (tile == 1) {
+					context.fillStyle = '#005784';
+				}
+				else if (tile == 2) {
+					context.fillStyle = '#31A2F2';
+				}
+				context.fillRect(x*3,y*3,3,3);
+			}
+		}
+		
+		context.fillStyle = '#fff';
+		context.fillRect(g_game.fighter.locX*3,g_game.fighter.locY*3,3,3);
+		context.fillRect(g_game.wizard.locX*3,g_game.wizard.locY*3,3,3);
+
 }
 
 function doCraftyInitialization() {
@@ -725,22 +756,10 @@ function doCraftyInitialization() {
 		}
 		
 		// draw minimap
-		for (var y=0;y<Dungeon.map_size;y++) {
-			for (var x=0;x<Dungeon.map_size;x++) {
-				var tile = Dungeon.map[x][y];
-				var color = '#000';
-				if (tile == 1) {
-					color = '#005784';
-				}
-				else if (tile == 2) {
-					color = '#31A2F2';
-				}
-				$('#divMiniMap').append('<span style="background: ' + color + '; width: 3px; height: 3px;"></span>');
-			}
-			$('#divMiniMap').append('<br>');
-		}
-
+		var pos = $('#cr-stage').offset();
+		$('#canvasMiniMap').css({ width: Dungeon.map_size*3, height: Dungeon.map_size*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - Dungeon.map_size*3 - 3 });
 		
+		updateMiniMap();
 	});
 
 	Crafty.scene("loading", function () {
@@ -919,7 +938,7 @@ function doCraftyInitialization() {
 	<div id="divfighterDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	
-	<div id="divMiniMap" style="position: absolute;z-index: 11000; color: #9D9D9D;border: 2px solid;"></div>
+	<canvas id="canvasMiniMap" style="position: absolute;z-index: 5000; border: 2px solid;"></canvas>
 	
 	<div id="divOverlay" style="background-image: url(./images/meshx3.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
 	
