@@ -4,6 +4,7 @@ Wizard
 --------
 -sleep spell
 -lighting spell
+-move = magic missle if enemy in range
 
 
 Fighter
@@ -11,3 +12,8 @@ Fighter
 -aoe attack
 -shield ability
 -paladin?
+
+
+-death animtion, flying bones
+-save progress
+-range attack mobs

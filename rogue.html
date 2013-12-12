@@ -3,7 +3,7 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 	<title>Oryx Rogue</title>
 	<script type="text/javascript" src="./includes/crafty.js"></script>
-	<script type="text/javascript" src="./includes/jQuery.js"></script>
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 	<script type="text/javascript" src="./dungeonGen.js"></script>
 	<script type="text/javascript" src="./gameDefines.js"></script>
 	<link href='//fonts.googleapis.com/css?family=Press+Start+2P' rel='stylesheet' type='text/css'>
@@ -134,8 +134,7 @@ function doCraftyInitialization() {
 			else {
 				var mobs = this.hit('Mob');
 				if (mobs) {
-					this.attackMob(mobs[0].obj);
-					g_game.slashEffects.getNextEffect().showSlash(mobs[0].obj.x, mobs[0].obj.y, movement);
+					this.attackMob(mobs[0].obj, movement);
 					this.moveMob({ x: 0- movement.x, y: 0 - movement.y});
 				}
 			}
@@ -225,9 +224,10 @@ function doCraftyInitialization() {
 		addXP: function(amt) {
 			return;
 		},
-		attackMob: function(mob) {
+		attackMob: function(mob, movement) {
 			if (mob.has('Player')) {
 				mob.takeDamage(this.calcDamageTo(mob), this);
+				g_game.slashEffects.getNextEffect().showSlash(mob.x, mob.y, movement);
 			}
 		}
 	});
@@ -413,6 +413,12 @@ function doCraftyInitialization() {
 			this.defense = defense;
 			
 			this.showHealth();
+		},
+		attackMob: function(mob, movement) {
+			if (mob.has('Creature')) {
+				mob.takeDamage(this.calcDamageTo(mob), this);
+				g_game.slashEffects.getNextEffect().showSlash(mob.x, mob.y, movement);
+			}
 		}
 		/*syncSprites: function() {
 			for (var key in this.equipment) {
@@ -468,11 +474,6 @@ function doCraftyInitialization() {
 				this.moveMob(movement);
 				this.searchForTreasure();
 			}
-		},
-		attackMob: function(mob) {
-			if (mob.has('Creature')) {
-				mob.takeDamage(this.calcDamageTo(mob), this);
-			}
 		}
 	});
 
@@ -514,11 +515,6 @@ function doCraftyInitialization() {
 		performMove: function(movement) {
 			this.moveMob(movement);
 			this.searchForTreasure();
-		},
-		attackMob: function(mob) {
-			if (mob.has('Creature')) {
-				mob.takeDamage(this.calcDamageTo(mob), this);
-			}
 		}
 	});
 
