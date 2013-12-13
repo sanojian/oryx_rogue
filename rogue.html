@@ -16,6 +16,17 @@
 			height: 3px;
 			display: block;
 		}
+		.keyText {
+			position: absolute;
+			font-weight: normal;
+			font-size: 18px;
+			text-align: center;
+			color: #B2DCEF;
+		}
+		img.spellImage {
+			position: absolute;
+			visibility: hidden;
+		}
 	</style>
 	
 	<script language="javascript">
@@ -49,8 +60,22 @@ window.addEventListener("load", function(event) {
 	var pos = $('#cr-stage').offset();
 	$('#imgwizardBox').css({ top: pos.top,// + $('#cr-stage').height() - $('#imgwizardBox').height(), 
 							left: pos.left });
+	$('#divwizardControls').css({ top: pos.top + $('#imgwizardBox').height() + 24*3,
+							left: pos.left + $('#imgwizardBox').width()/2 - 48*3/2, width: 48*3, height: 48*3 });
+	$('div.keyText').css('font-family', GAME_FONT);
+	$('#divKeyUp').css({ left: $('#divwizardControls').width()/2-3*3, top: 12*3 });
+	$('#divKeyLeft').css({ left: 12*3, top: $('#divwizardControls').height()/2-3*3 });
+	$('#divKeyRight').css({ left: 30*3, top: $('#divwizardControls').height()/2-3*3 });
+	$('#divKeyDown').css({ left: $('#divwizardControls').width()/2-3*3, top: 30*3 });
+	$('#divwizardSpells').css({ top: pos.top + $('#imgwizardBox').height() + 3*3,
+							left: pos.left + $('#imgwizardBox').width()/2 - 64*3/2, width: 64*3, height: 16*3 });
+	$('#imgSpell_fireball').css('left', 16*3);
+	$('#imgSpell_sleep').css('left', 32*3);
+	$('#imgSpell_lightening').css('left', 48*3);
 	$('#imgfighterBox').css({ top: pos.top,// + $('#cr-stage').height() - $('#imgfighterBox').height(), 
 							left: pos.left + $('#cr-stage').width() - $('#imgfighterBox').width() });
+	$('#divfighterControls').css({ top: pos.top + $('#imgfighterBox').height() + 24*3,
+							left: pos.left + $('#cr-stage').width() - $('#imgfighterBox').width()/2 - 48*3/2, width: 48*3, height: 48*3 });
 	$('#divOverlay').css({ width: $('#cr-stage').width(), height: $('#cr-stage').height(), left: pos.left+2, top: pos.top+2 });
 
 	$('#canvasMiniMap').css({ width: 64*3, height: 64*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - 64*3 - 6 });
@@ -70,27 +95,38 @@ function centerOnPlayers() {
 	} catch(ex) {;}
 }
 
+function fadeOutControls() {
+	$('div.playerControls').stop().css('opacity', 1);
+	$('div.playerControls').animate({ opacity: 0 }, 2000);
+}
+
 function updateMiniMap() {
 		var drawingCanvas = document.getElementById('canvasMiniMap');
 		var context = drawingCanvas.getContext('2d');
 		
 		for (var y=0;y<Dungeon.map_size;y++) {
 			for (var x=0;x<Dungeon.map_size;x++) {
-				var tile = Dungeon.map[x][y];
-				context.fillStyle = '#000';
-				if (tile == 1) {
-					context.fillStyle = '#005784';
+				if (g_game.mapReveal[y][x]) {
+					var tile = Dungeon.map[x][y];
+					context.fillStyle = '#000';
+					if (tile == 1) {
+						context.fillStyle = '#005784';
+					}
+					else if (tile == 2) {
+						context.fillStyle = '#31A2F2';
+					}
+					context.fillRect(x*6,y*3,6,3);
 				}
-				else if (tile == 2) {
-					context.fillStyle = '#31A2F2';
-				}
-				context.fillRect(x*6,y*3,6,3);
 			}
 		}
-		context.fillStyle = '#44891A';
-		context.fillRect((g_game.entrance.x/TILE_WIDTH)*6-1,(g_game.entrance.y/TILE_HEIGHT)*3-1,8,4);
-		context.fillStyle = '#BE2633';
-		context.fillRect((g_game.exit.x/TILE_WIDTH)*6-1,(g_game.exit.y/TILE_HEIGHT)*3-1,8,4);
+		if (g_game.mapReveal[g_game.entrance.y/TILE_HEIGHT][g_game.entrance.x/TILE_WIDTH]) {
+			context.fillStyle = '#44891A';
+			context.fillRect((g_game.entrance.x/TILE_WIDTH)*6-1,(g_game.entrance.y/TILE_HEIGHT)*3-1,8,4);
+		}
+		if (g_game.mapReveal[g_game.exit.y/TILE_HEIGHT][g_game.exit.x/TILE_WIDTH]) {
+			context.fillStyle = '#BE2633';
+			context.fillRect((g_game.exit.x/TILE_WIDTH)*6-1,(g_game.exit.y/TILE_HEIGHT)*3-1,8,4);
+		}
 		
 		context.fillStyle = '#fff';
 		context.fillRect(g_game.fighter.locX*6,g_game.fighter.locY*3,6,3);
@@ -253,6 +289,20 @@ function doCraftyInitialization() {
 						movement.y = 1;
 					}
 					else {
+						var validKey = false;
+						for (var i=0;i<g_game.wizard.playerControls.length;i++) {
+							if (evt.key == g_game.wizard.playerControls.charCodeAt(i)) {
+								validKey = true;
+							}
+						}
+						for (var i=0;i<g_game.fighter.playerControls.length;i++) {
+							if (evt.key == g_game.fighter.playerControls.charCodeAt(i)) {
+								validKey = true;
+							}
+						}
+						if (!validKey) {
+							fadeOutControls();
+						}
 						return;
 					}
 					this.performMove(movement);
@@ -261,6 +311,16 @@ function doCraftyInitialization() {
 					if (exits) {
 					
 					}
+					for (var y=Math.max(0, this.locY-8);y<Math.min(Dungeon.map_size, this.locY+8);y++) {
+						for (var x=Math.max(0, this.locX-8);x<Math.min(Dungeon.map_size, this.locX+8);x++) {
+							if (x >= 0 && x < Dungeon.map_size && y >= 0 && y < Dungeon.map_size 
+								&& Math.sqrt(Math.pow(this.locX - x, 2) + Math.pow(this.locY - y, 2)) < 6) {
+								
+								g_game.mapReveal[y][x] = true;
+							}
+						}
+					}
+
 					centerOnPlayers();
 				}).bind('EnterFrame', function(frameObj) {
 					if (frameObj.frame % 19 == 0) {
@@ -285,7 +345,8 @@ function doCraftyInitialization() {
 				var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 12*TILE_WIDTH);
 				this.attach(lightSource);
 				
-			
+				this.playerControls = controls;
+				
 				// meters
 				this.posCharBox = $('#img' + type + 'Box').offset();
 				this.$healthBar = $('#div' + type + 'Health');
@@ -669,11 +730,6 @@ function doCraftyInitialization() {
 	Crafty.scene("main", function () {
 		Crafty.background("#000");		
 
-		g_game.fighter = Crafty.e('Fighter')
-			.Fighter(2, 1, String.fromCharCode(38) + String.fromCharCode(37) + String.fromCharCode(40) + String.fromCharCode(39));
-
-		g_game.wizard = Crafty.e('Wizard')
-			.Wizard(1, 1, 'WASD');
 		
 		for (var i=0;i<10;i++) {
 			g_game.slashEffects.objArray.push(Crafty.e('SlashEffect').SlashEffect());
@@ -683,13 +739,15 @@ function doCraftyInitialization() {
 		Crafty.e('Treasure').Treasure(4, 4, 'helm', 4);
 		Crafty.e('Treasure').Treasure(5, 5, 'staff', 3);
 		
-		centerOnPlayers();
-		
 		Dungeon.Generate();
+		
+		g_game.mapReveal = [];
 		
 		var bEntrancePlaced = false;
 		for (var y=0;y<Dungeon.map_size;y++) {
+			g_game.mapReveal[y] = [];
 			for (var x=0;x<Dungeon.map_size;x++) {
+				g_game.mapReveal[y][x] = false;
 				var tile = Dungeon.map[x][y];
  				if (tile == 2) {
 					var sprite = 'wall';
@@ -729,6 +787,14 @@ function doCraftyInitialization() {
 				}
 			}
 		}
+
+		g_game.fighter = Crafty.e('Fighter')
+			.Fighter(2, 1, String.fromCharCode(38) + String.fromCharCode(37) + String.fromCharCode(40) + String.fromCharCode(39));
+
+		g_game.wizard = Crafty.e('Wizard')
+			.Wizard(1, 1, 'WASD12345');
+		centerOnPlayers();
+
 		
 		var bBossPlaced = false;
 		var bExitPlaced = false;
@@ -767,6 +833,7 @@ function doCraftyInitialization() {
 		$('#canvasMiniMap').css({ width: Dungeon.map_size*3, height: Dungeon.map_size*3, left: pos.left+6*3, top: pos.top + $('#cr-stage').height() - Dungeon.map_size*3 - 3*3 });
 		
 		updateMiniMap();
+		fadeOutControls();
 	});
 
 	Crafty.scene("loading", function () {
@@ -935,6 +1002,18 @@ function doCraftyInitialization() {
 	<div id="divwizardDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divwizardHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divwizardManaText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divwizardSpells" style="background-image: url(./images/spell_background.png); position: absolute;z-index: 11000;">
+		<img id="imgSpell_missle" class="spellImage" src="./images/spell_missle.png" />
+		<img id="imgSpell_fireball" class="spellImage" src="./images/spell_fireball.png" />
+		<img id="imgSpell_sleep" class="spellImage" src="./images/spell_sleep.png" />
+		<img id="imgSpell_lightening" class="spellImage" src="./images/spell_lightening.png" />
+	</div>
+	<div id="divwizardControls" class="playerControls" style="background-image: url(./images/controls.png); position: absolute;z-index: 11000;">
+		<div id="divKeyUp" class="keyText">W</div>
+		<div id="divKeyLeft" class="keyText">A</div>
+		<div id="divKeyDown" class="keyText">S</div>
+		<div id="divKeyRight" class="keyText">D</div>
+	</div> 
 	
 	<img id="imgfighterBox" src="./images/charbox_fighter.png" style="position: absolute;z-index: 10000;" />
 	<div id="divfighterHealth" style="background: #BE2633;position: absolute;width: 33px; height: 30px;z-index: 9000" ></div> 
@@ -944,6 +1023,7 @@ function doCraftyInitialization() {
 	<div id="divfighterAttackText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterDefenseText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divfighterHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
+	<div id="divfighterControls" class="playerControls" style="background-image: url(./images/controls.png); position: absolute;z-index: 11000;"></div> 
 	
 	<canvas id="canvasMiniMap" style="position: absolute;z-index: 5000; border: 2px solid; opacity: 0.8;"></canvas>
 	
