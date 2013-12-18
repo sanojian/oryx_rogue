@@ -325,6 +325,9 @@ function doCraftyInitialization() {
 				}).bind('EnterFrame', function(frameObj) {
 					if (frameObj.frame % 19 == 0) {
 						this.mana = Math.min(this.maxMana, this.mana + 1);
+						if (type == 'wizard') {
+							this.checkSpellMana();
+						}
 						this.showHealth(type);
 					}
 					else if (frameObj.frame % 51 == 0) {
@@ -334,14 +337,10 @@ function doCraftyInitialization() {
 				
 				}).Mob(x, y, type)
 				
-				//this.playerType = type;
-				if (type == 'fighter') {
-					this.maxMana = 0;
-				}
-				else {
-					this.maxMana = 16;
-				}
-				
+				this.playerType = type;
+				this.maxHealth = GAME.CHARLEVELS[this.playerType][0].health;
+				this.maxMana = GAME.CHARLEVELS[this.playerType][0].mana;
+
 				var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 12*TILE_WIDTH);
 				this.attach(lightSource);
 				
@@ -400,16 +399,6 @@ function doCraftyInitialization() {
 			if (this.$txtMana) {
 				this.$txtMana.text(this.mana);
 			}
-			/*if (this.$spellProgress) {
-				width = Math.floor(48 * this.mana/4);
-				if (this.mana > 4 && this.mana <= 12) {
-					width = 48 + Math.floor(48 * (this.mana-4)/8);
-				}
-				else if (this.mana > 12 && this.mana <= 28) {
-					width = 48*2 + Math.floor(48 * (this.mana-8)/16);
-				}
-				this.$spellProgress.css({ left: this.posCharBox.left, top: this.posCharBox.top + 48*3, width: width });
-			}*/
 		
 		},
 		addXP: function(amt) {
@@ -437,8 +426,9 @@ function doCraftyInitialization() {
 				level = 2;
 			
 			if (this.level != level) {
-				//this.offense = level;
 				// ding!
+				this.maxHealth = GAME.CHARLEVELS[this.playerType][level-1].health;
+				this.maxMana = GAME.CHARLEVELS[this.playerType][level-1].mana;
 			}
 			this.level = level;
 			this.showHealth();
@@ -523,6 +513,11 @@ function doCraftyInitialization() {
 			
 			
 			return this;
+		},
+		checkSpellMana: function() {
+			for (var key in GAME.SPELLS) {
+				$('#imgSpell_' + key).css({ visibility: (this.mana >= GAME.SPELLS[key].mana) ? 'visible' : 'hidden' });
+			}
 		},
 		performMove: function(movement) {
 			if (this.bCasting) {

@@ -63,6 +63,32 @@ window.GAME = {
 			slot: 2,
 			z: 110
 		}
+	},
+	SPELLS: {
+		missle: {
+			mana: 4,
+			damage: 4
+		},
+		fireball: {
+			mana: 8,
+			damage: 3
+		}
+	},
+	CHARLEVELS: {
+		fighter: [
+			{ health: 10, mana: 0 },
+			{ health: 12, mana: 0 },
+			{ health: 14, mana: 0 },
+			{ health: 26, mana: 0 },
+			{ health: 36, mana: 0 }
+		],
+		wizard: [
+			{ health: 8, mana: 7 },
+			{ health: 9, mana: 12 },
+			{ health: 12, mana: 18 },
+			{ health: 15, mana: 24 },
+			{ health: 19, mana: 30 }
+		]
 	}
 
 
