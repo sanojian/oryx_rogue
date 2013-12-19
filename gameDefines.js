@@ -67,11 +67,15 @@ window.GAME = {
 	SPELLS: {
 		missle: {
 			mana: 4,
-			damage: 4
+			damage: 5,
+			speed: 5,
+			range: 200
 		},
 		fireball: {
 			mana: 8,
-			damage: 3
+			damage: 3,
+			speed: 4,
+			range: 200
 		}
 	},
 	CHARLEVELS: {
@@ -89,7 +93,18 @@ window.GAME = {
 			{ health: 15, mana: 24 },
 			{ health: 19, mana: 30 }
 		]
-	}
+	},
+	DUNGEONLEVELS: [
+		{
+			name: 'The Entryway',
+			spawnRate: 0.05,
+			mobs: [ 
+				{ sprite: 'orc_chief', 	prob: 1,	type: 'fighter', 	level: 2, 	health: 22,	 	mana: 0, 	offense: 12, 	defense: 12	},
+				{ sprite: 'orc', 		prob: 7,	type: 'fighter', 	level: 1, 	health: 10, 	mana: 0, 	offense: 6, 	defense: 6 		},
+				{ sprite: 'orc_archer', prob: 2,	type: 'caster',		level: 1, 	health: 8, 		mana: 4, 	offense: 6, 	defense: 6,	spells: ['arrow'] }
+			]
+		}
+	]
 
 
 
