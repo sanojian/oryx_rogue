@@ -17,3 +17,4 @@ Fighter
 -death animtion, flying bones
 -save progress
 -range attack mobs
+-caster offense effects spell dmg

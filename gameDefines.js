@@ -76,6 +76,12 @@ window.GAME = {
 			damage: 3,
 			speed: 4,
 			range: 200
+		},
+		Arrow: {
+			mana: 4,
+			damage: 2,
+			speed: 1,
+			range: 120
 		}
 	},
 	CHARLEVELS: {
@@ -99,9 +105,18 @@ window.GAME = {
 			name: 'The Entryway',
 			spawnRate: 0.05,
 			mobs: [ 
-				{ sprite: 'orc_chief', 	prob: 1,	type: 'fighter', 	level: 2, 	health: 22,	 	mana: 0, 	offense: 12, 	defense: 12	},
-				{ sprite: 'orc', 		prob: 7,	type: 'fighter', 	level: 1, 	health: 10, 	mana: 0, 	offense: 6, 	defense: 6 		},
-				{ sprite: 'orc_archer', prob: 2,	type: 'caster',		level: 1, 	health: 8, 		mana: 4, 	offense: 6, 	defense: 6,	spells: ['arrow'] }
+				{ sprite: 'rat_king', 	prob: 1,	type: 'fighter', 	level: 2, 	health: 22,	 	mana: 0, 	offense: 12, 	defense: 12		},
+				{ sprite: 'rat', 		prob: 5,	type: 'fighter', 	level: 1, 	health: 10, 	mana: 0, 	offense: 6, 	defense: 6 		},
+				{ sprite: 'bat', 		prob: 4,	type: 'fighter', 	level: 1, 	health: 10, 	mana: 0, 	offense: 6, 	defense: 6 		}
+			]
+		},
+		{
+			name: 'The Orc Kingdom',
+			spawnRate: 0.05,
+			mobs: [ 
+				{ sprite: 'orc_chief', 	prob: 1,	type: 'fighter', 	level: 3, 	health: 22,	 	mana: 0, 	offense: 22, 	defense: 18		},
+				{ sprite: 'orc', 		prob: 1,	type: 'fighter', 	level: 2, 	health: 18, 	mana: 0, 	offense: 12, 	defense: 12 	},
+				{ sprite: 'orc_archer', prob: 8,	type: 'caster',		level: 2, 	health: 12, 	mana: 7, 	offense: 8, 	defense: 8,		spell: 'Arrow' }
 			]
 		}
 	]

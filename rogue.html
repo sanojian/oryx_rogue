@@ -225,9 +225,17 @@ function doCraftyInitialization() {
 	
 	Crafty.c('Creature', {
 	
-		Creature: function(x, y, sprite, level) {
+		Creature: function(x, y, props) {
 			this.requires('Mob')
 				.bind('EnterFrame', function(frameObj) {
+					// regen
+					if (frameObj.frame % 19 == 0) {
+						this.mana = Math.min(this.maxMana, this.mana + 1);
+					}
+					else if (frameObj.frame % 51 == 0) {
+						this.health = Math.min(this.maxHealth, this.health + 1);
+					}
+					// decide move
 					if ((frameObj.frame + this.fuzzer) % 50 == 0) {
 						var players = Crafty('Player');
 						var chase = undefined;
@@ -242,18 +250,28 @@ function doCraftyInitialization() {
 							}
 						}
 						if (chase) {
+							// go after player
 							var dx = chase.locX - this.locX;
 							var dy = chase.locY - this.locY;
 							var movement = { x: (dx ? Math.abs(dx)/dx : 0), y: (dy ? Math.abs(dy)/dy : 0) };
-							this.moveMob(movement);
+							var dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
+							if (props.type == 'caster' && this.mana >= GAME.SPELLS[props.spell].mana && (dist <= Math.abs(dx) || dist <= Math.abs(dy))) {
+								// cast spell
+								Crafty.e(props.spell)
+									[props.spell](this.locX, this.locY, movement, this, 'Player');
+								this.mana -= GAME.SPELLS[props.spell].mana;
+							}
+							else {
+								this.moveMob(movement);
+							}
 						}
 					}
-				}).Mob(x, y, sprite)
+				}).Mob(x, y, props.sprite)
 		
-			this.level = level;
-			this.maxHealth = this.health = level * 10;
-			this.offense = level * 6;
-			this.defense = level * 6;
+			this.level = props.level;
+			this.maxHealth = this.health = props.health;
+			this.offense = props.offense;
+			this.defense = props.defense;
 			this.fuzzer = Math.floor(Math.random() * 50);
 			
 			return this;
@@ -308,10 +326,6 @@ function doCraftyInitialization() {
 					}
 					this.performMove(movement);
 				}).bind('Move', function() {
-					var exits = this.hit('exit');
-					if (exits) {
-					
-					}
 					for (var y=Math.max(0, this.locY-8);y<Math.min(Dungeon.map_size, this.locY+8);y++) {
 						for (var x=Math.max(0, this.locX-8);x<Math.min(Dungeon.map_size, this.locX+8);x++) {
 							if (x >= 0 && x < Dungeon.map_size && y >= 0 && y < Dungeon.map_size 
@@ -452,6 +466,13 @@ function doCraftyInitialization() {
 				}
 			}
 		},
+		lookForExit: function() {
+			var exits = this.hit('exit');
+			if (exits) {
+				g_game.curLevel = Math.min(GAME.DUNGEONLEVELS.length-1, g_game.curLevel + 1);
+				Crafty.scene("main");
+			}
+		},
 		calcStats: function() {
 			var offense = 0;
 			var defense = 0;
@@ -523,13 +544,14 @@ function doCraftyInitialization() {
 		performMove: function(movement) {
 			if (this.bCasting) {
 				Crafty.e(this.spell)
-					[this.spell](this.locX, this.locY, movement, this);
+					[this.spell](this.locX, this.locY, movement, this, 'Creature');
 				this.bCasting = false;
 			
 			}
 			else {
 				this.moveMob(movement);
 				this.searchForTreasure();
+				this.lookForExit();
 			}
 		}
 	});
@@ -572,6 +594,47 @@ function doCraftyInitialization() {
 		performMove: function(movement) {
 			this.moveMob(movement);
 			this.searchForTreasure();
+			this.lookForExit();
+		}
+	});
+
+	Crafty.c('Arrow', {
+		speed: GAME.SPELLS.Arrow.speed*3,
+		range: GAME.SPELLS.Arrow.range*3,
+	
+		Arrow: function(x, y, direction, caster, target) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, arrow')
+				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
+				.bind('EnterFrame', function(frameObj) {
+					this.attr({ x: this.x + direction.x*this.speed, y: this.y + direction.y*this.speed });
+					this.range -= this.speed;
+					if (this.range <= 0) {
+						this.destroy();
+					}
+					else if (this.hit('solid')) {
+						this.destroy();
+					}
+					else if (this.hit(target)) {
+						var creatures = this.hit(target);
+						for (var i=0;i<creatures.length;i++) {
+							var xp = creatures[i].obj.takeDamage(GAME.SPELLS.Arrow.damage, this.caster);
+						}
+						this.destroy();
+					}
+				}).collision()
+				
+			this.caster = caster;
+			if (direction.x < 0) {
+				this.sprite(7*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+			}
+			else if (direction.x > 0) {
+				this.sprite(6*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+			}
+			else if (direction.y > 0) {
+				this.sprite(5*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+			}
+				
+			return this;
 		}
 	});
 
@@ -579,7 +642,7 @@ function doCraftyInitialization() {
 		speed: GAME.SPELLS.missle.speed*3,
 		range: GAME.SPELLS.missle.range*3,
 	
-		Bolt: function(x, y, direction, caster) {
+		Bolt: function(x, y, direction, caster, target) {
 			this.requires('2D, ' + RENDERING_MODE + ', Collision, magic_missle')
 				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
 				.bind('EnterFrame', function(frameObj) {
@@ -591,8 +654,8 @@ function doCraftyInitialization() {
 					else if (this.hit('solid')) {
 						this.destroy();
 					}
-					else if (this.hit('Creature')) {
-						var creatures = this.hit('Creature');
+					else if (this.hit(target)) {
+						var creatures = this.hit(target);
 						for (var i=0;i<creatures.length;i++) {
 							var xp = creatures[i].obj.takeDamage(GAME.SPELLS.missle.damage, this.caster);
 						}
@@ -731,9 +794,9 @@ function doCraftyInitialization() {
 			g_game.slashEffects.objArray.push(Crafty.e('SlashEffect').SlashEffect());
 		}
 
-		Crafty.e('Treasure').Treasure(4, 3, 'pants', 1);
-		Crafty.e('Treasure').Treasure(4, 4, 'helm', 4);
-		Crafty.e('Treasure').Treasure(5, 5, 'staff', 3);
+		//Crafty.e('Treasure').Treasure(4, 3, 'pants', 1);
+		//Crafty.e('Treasure').Treasure(4, 4, 'helm', 4);
+		//Crafty.e('Treasure').Treasure(5, 5, 'staff', 3);
 		
 		Dungeon.Generate();
 		
@@ -768,7 +831,7 @@ function doCraftyInitialization() {
 				else if (tile == 1) {
 					if (!bEntrancePlaced) {
 						Crafty.e('2D, ' + RENDERING_MODE + ', stairs, Collision, LitObject')
-							.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 1})
+							.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
 							.LitObject()
 							.collision();
 						bEntrancePlaced = true;
@@ -784,12 +847,31 @@ function doCraftyInitialization() {
 			}
 		}
 
-		g_game.fighter = Crafty.e('Fighter')
-			.Fighter(2, 1, String.fromCharCode(38) + String.fromCharCode(37) + String.fromCharCode(40) + String.fromCharCode(39));
+		var bFighterPlaced = false;
+		var bWizardPlaced = false;
+		for (var y=0;y<Dungeon.map_size;y++) {
+			for (var x=0;x<Dungeon.map_size;x++) {
+				if (Dungeon.map[x][y] == 1) {
+					if (!bWizardPlaced) {
+						g_game.wizard = Crafty.e('Wizard')
+							.Wizard(x, y, 'WASD12345');
+						bWizardPlaced = true;
+					}
+					else if (!bFighterPlaced) {
+						g_game.fighter = Crafty.e('Fighter')
+							.Fighter(x, y, String.fromCharCode(38) + String.fromCharCode(37) + String.fromCharCode(40) + String.fromCharCode(39));
+						bFighterPlaced = true;
+						g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
+							.attr({ x: (x+1)*TILE_WIDTH, y: y*TILE_HEIGHT, z: 90})
+							.collision()
+							.LitObject();
+					}
+				}
+			}
+		}
 
-		g_game.wizard = Crafty.e('Wizard')
-			.Wizard(1, 1, 'WASD12345');
 		centerOnPlayers();
+
 
 		
 		var bBossPlaced = false;
@@ -806,30 +888,31 @@ function doCraftyInitialization() {
 							var mob = dungeonLevel.mobs[i];
 							if (rand < mob.prob + chanceTotal) {
 								if (!bExitPlaced) {
-									g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
+									/*g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
 										.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 90})
-										.LitObject()
-										.collision();
+										.collision()
+										.LitObject();*/
 									bExitPlaced = true;
 									g_game.exit.bIAmExit = true;
 									bMobPlaced = true;
 								}
 								else if (!(i==0 && bBossPlaced)) {
-									Crafty.e('Creature').Creature(x, y, mob.sprite, mob.level);
+									Crafty.e('Creature').Creature(x, y, mob);
 									bMobPlaced = true;
 									if (i==0) {
 										bBossPlaced = true;
-										console.log('boss placed');
 									}
 								}
-								chanceTotal += mob.prob;
 							}
+							chanceTotal += mob.prob;
 						}
 					}
 				}
 			}
 		}
-		console.log(Crafty('Creature').length + ' mobs created...');
+		for (var i=0;i<dungeonLevel.mobs.length;i++) {
+			console.log(Crafty(dungeonLevel.mobs[i].sprite).length + ' ' + dungeonLevel.mobs[i].sprite + ' created...');
+		}
 		
 		// draw minimap
 		var pos = $('#cr-stage').offset();
@@ -961,10 +1044,15 @@ function doCraftyInitialization() {
 				wizard: [12*TILE_WIDTH, 24*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				magic_missle: [0*TILE_WIDTH, 10*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				fireball: [10*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				arrow: [4*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				
 				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_archer: [6*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_cheif: [8*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				spider: [8*TILE_WIDTH, 27*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				rat: [1*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				rat_king: [4*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				bat: [6*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 
 				wall: [0*TILE_WIDTH, 13*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				ceiling: [7*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
