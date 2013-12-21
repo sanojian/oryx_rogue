@@ -4,17 +4,12 @@ Wizard
 --------
 -sleep spell
 -lighting spell
--move = magic missle if enemy in range
-
-
-Fighter
----------
--aoe attack
--shield ability
--paladin?
+-start spell animation
 
 
 -death animtion, flying bones
 -save progress
--range attack mobs
--caster offense effects spell dmg
+-handle player death
+-splash screen for each dungeon
+-music
+

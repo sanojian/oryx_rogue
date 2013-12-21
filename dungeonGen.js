@@ -135,7 +135,11 @@ var Dungeon = {
         }
 
         return false;
-    }
+    },
+	Clear: function() {
+		this.map = null,
+		this.rooms = []
+	}
 }
 
 var Helpers = {

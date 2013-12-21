@@ -6,6 +6,7 @@
 	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 	<script type="text/javascript" src="./dungeonGen.js"></script>
 	<script type="text/javascript" src="./gameDefines.js"></script>
+	<script type="text/javascript" src="./includes/buzz.min.js"></script>
 	<link href='//fonts.googleapis.com/css?family=Press+Start+2P' rel='stylesheet' type='text/css'>
 	<style>
 		body, html { margin:0; padding: 0; overflow:hidden; font-family:Arial; font-size:20px }
@@ -49,6 +50,7 @@ var g_game = {
 			return g_game.slashEffects.objArray[g_game.slashEffects.cursor];
 		}
 	},
+	sounds: {},
 	curLevel: 0
 };
 
@@ -70,9 +72,9 @@ window.addEventListener("load", function(event) {
 	$('#divKeyDown').css({ left: $('#divwizardControls').width()/2-3*3, top: 30*3 });
 	$('#divwizardSpells').css({ top: pos.top + $('#imgwizardBox').height() + 3*3,
 							left: pos.left + $('#imgwizardBox').width()/2 - 64*3/2, width: 64*3, height: 16*3 });
-	$('#imgSpell_fireball').css('left', 16*3);
-	$('#imgSpell_sleep').css('left', 32*3);
-	$('#imgSpell_lightening').css('left', 48*3);
+	$('#imgSpell_Fireball').css('left', 16*3);
+	$('#imgSpell_Sleep').css('left', 32*3);
+	$('#imgSpell_Lightening').css('left', 48*3);
 	$('#imgfighterBox').css({ top: pos.top,// + $('#cr-stage').height() - $('#imgfighterBox').height(), 
 							left: pos.left + $('#cr-stage').width() - $('#imgfighterBox').width() });
 	$('#divfighterControls').css({ top: pos.top + $('#imgfighterBox').height() + 24*3,
@@ -99,6 +101,38 @@ function centerOnPlayers() {
 function fadeOutControls() {
 	$('div.playerControls').stop().css('opacity', 1);
 	$('div.playerControls').animate({ opacity: 0 }, 2000);
+}
+
+function savePlayers() {
+	var saveGame = {
+		fighter: {
+			xp: g_game.fighter.xp,
+			equipment: g_game.fighter.equipment
+		},
+		wizard: {
+			xp: g_game.wizard.xp,
+			equipment: g_game.wizard.equipment
+		},
+		level: g_game.curLevel
+	}
+
+	localStorage.saveGame = JSON.stringify(saveGame);
+}
+
+function restorePlayers() {
+	if (localStorage.saveGame) {
+		var saveGame = $.parseJSON(localStorage.saveGame);
+		g_game.fighter.xp = saveGame.fighter.xp;
+		g_game.fighter.equipment = saveGame.fighter.equipment;
+		g_game.fighter.addXP(0);
+		g_game.fighter.calcStats();
+		g_game.fighter.dressInEquipment();
+		g_game.wizard.xp = saveGame.wizard.xp;
+		g_game.wizard.equipment = saveGame.wizard.equipment;
+		g_game.wizard.addXP(0);
+		g_game.wizard.calcStats();
+		g_game.wizard.dressInEquipment();
+	}
 }
 
 function updateMiniMap() {
@@ -214,6 +248,7 @@ function doCraftyInitialization() {
 				.textColor(color, 1)
 				.text(txt)
 				.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
+				//.css({ 'font-size': '16pt', 'font-weight': 'bold', 'font-family': GAME_FONT })
 				.tween({ y: y*TILE_HEIGHT - 48 }, 25)
 				.bind('TweenEnd', function() {
 					this.destroy();
@@ -270,6 +305,7 @@ function doCraftyInitialization() {
 		
 			this.level = props.level;
 			this.maxHealth = this.health = props.health;
+			this.maxMana = this.mana = props.mana;
 			this.offense = props.offense;
 			this.defense = props.defense;
 			this.fuzzer = Math.floor(Math.random() * 50);
@@ -283,6 +319,7 @@ function doCraftyInitialization() {
 			if (mob.has('Player')) {
 				mob.takeDamage(this.calcDamageTo(mob), this);
 				g_game.slashEffects.getNextEffect().showSlash(mob.x, mob.y, movement);
+				g_game.sounds.hurt1.play();
 			}
 		}
 	});
@@ -466,10 +503,16 @@ function doCraftyInitialization() {
 				}
 			}
 		},
+		dressInEquipment: function() {
+			for (var key in this.equipment) {
+				this[key].sprite(GAME.EQUIPMENT[key].slot*TILE_WIDTH, this.equipment[key]*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+			}
+		},
 		lookForExit: function() {
 			var exits = this.hit('exit');
 			if (exits) {
 				g_game.curLevel = Math.min(GAME.DUNGEONLEVELS.length-1, g_game.curLevel + 1);
+				savePlayers();
 				Crafty.scene("main");
 			}
 		},
@@ -491,6 +534,7 @@ function doCraftyInitialization() {
 			if (mob.has('Creature')) {
 				mob.takeDamage(this.calcDamageTo(mob), this);
 				g_game.slashEffects.getNextEffect().showSlash(mob.x, mob.y, movement);
+				g_game.sounds['swing' + Math.ceil(Math.random()*3)].play();
 			}
 		}
 		/*syncSprites: function() {
@@ -508,15 +552,15 @@ function doCraftyInitialization() {
 		Wizard: function(x, y, controls) {
 			this.requires('Player')
 				.bind('KeyDown', function(evt) {
-					if (evt.key == Crafty.keys['1'] && this.mana >= GAME.SPELLS.missle.mana) {
+					if (evt.key == Crafty.keys['1'] && this.mana >= GAME.SPELLS.Missle.mana) {
 						this.bCasting = true;
-						this.mana -= GAME.SPELLS.missle.mana;
-						this.spell = 'Bolt';
+						this.mana -= GAME.SPELLS.Missle.mana;
+						this.spell = 'Missle';
 						this.showHealth('wizard');
 					}
-					else if (evt.key == Crafty.keys['2'] && this.mana >= GAME.SPELLS.fireball.mana) {
+					else if (evt.key == Crafty.keys['2'] && this.mana >= GAME.SPELLS.Fireball.mana) {
 						this.bCasting = true;
-						this.mana -= GAME.SPELLS.fireball.mana;
+						this.mana -= GAME.SPELLS.Fireball.mana;
 						this.spell = 'Fireball';
 						this.showHealth('wizard');
 					}
@@ -598,12 +642,19 @@ function doCraftyInitialization() {
 		}
 	});
 
+	Crafty.c('Spell', {
+		calcSpellDamage: function(props, caster) {
+			var damage = props.damage + Math.ceil(Math.random() * props.damage * this.caster.offense/4);
+			return damage;
+		}
+	});
+	
 	Crafty.c('Arrow', {
 		speed: GAME.SPELLS.Arrow.speed*3,
 		range: GAME.SPELLS.Arrow.range*3,
 	
 		Arrow: function(x, y, direction, caster, target) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, arrow')
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, Spell, arrow')
 				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
 				.bind('EnterFrame', function(frameObj) {
 					this.attr({ x: this.x + direction.x*this.speed, y: this.y + direction.y*this.speed });
@@ -617,33 +668,34 @@ function doCraftyInitialization() {
 					else if (this.hit(target)) {
 						var creatures = this.hit(target);
 						for (var i=0;i<creatures.length;i++) {
-							var xp = creatures[i].obj.takeDamage(GAME.SPELLS.Arrow.damage, this.caster);
+							var xp = creatures[i].obj.takeDamage(this.damage, this.caster);
 						}
 						this.destroy();
 					}
 				}).collision()
 				
 			this.caster = caster;
-			if (direction.x < 0) {
+			this.damage = this.calcSpellDamage(GAME.SPELLS.Arrow, caster);
+			if (direction.x > 0) {
+				this.sprite(8*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+			}
+			else if (direction.x < 0) {
 				this.sprite(7*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
 			}
-			else if (direction.x > 0) {
-				this.sprite(6*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
-			}
 			else if (direction.y > 0) {
-				this.sprite(5*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+				this.sprite(6*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
 			}
 				
 			return this;
 		}
 	});
 
-	Crafty.c('Bolt', {
-		speed: GAME.SPELLS.missle.speed*3,
-		range: GAME.SPELLS.missle.range*3,
+	Crafty.c('Missle', {
+		speed: GAME.SPELLS.Missle.speed*3,
+		range: GAME.SPELLS.Missle.range*3,
 	
-		Bolt: function(x, y, direction, caster, target) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, magic_missle')
+		Missle: function(x, y, direction, caster, target) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, Spell, magic_missle')
 				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
 				.bind('EnterFrame', function(frameObj) {
 					this.attr({ x: this.x + direction.x*this.speed, y: this.y + direction.y*this.speed });
@@ -657,13 +709,14 @@ function doCraftyInitialization() {
 					else if (this.hit(target)) {
 						var creatures = this.hit(target);
 						for (var i=0;i<creatures.length;i++) {
-							var xp = creatures[i].obj.takeDamage(GAME.SPELLS.missle.damage, this.caster);
+							var xp = creatures[i].obj.takeDamage(this.damage, this.caster);
 						}
 						this.destroy();
 					}
 				}).collision()
 				
 			this.caster = caster;
+			this.damage = this.calcSpellDamage(GAME.SPELLS.Missle, caster);
 				
 			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 4*TILE_WIDTH);
 			this.attach(lightSource);
@@ -673,11 +726,11 @@ function doCraftyInitialization() {
 	});
 
 	Crafty.c('Fireball', {
-		speed: GAME.SPELLS.fireball.speed*3,
-		range: GAME.SPELLS.fireball.range*3,
+		speed: GAME.SPELLS.Fireball.speed*3,
+		range: GAME.SPELLS.Fireball.range*3,
 	
-		Fireball: function(x, y, direction, caster) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, fireball, SpriteAnimation')
+		Fireball: function(x, y, direction, caster, target) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, fireball, Spell, SpriteAnimation')
 				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
 				.animate('burn', [[10*TILE_WIDTH, 8*TILE_HEIGHT], [11*TILE_WIDTH, 8*TILE_HEIGHT]])
 				.bind('EnterFrame', function(frameObj) {
@@ -689,15 +742,16 @@ function doCraftyInitialization() {
 					else if (this.hit('solid')) {
 						this.destroy();
 					}
-					else if ((frameObj.frame % 4 == 0) && this.hit('Creature')) {
-						var creatures = this.hit('Creature');
+					else if ((frameObj.frame % 4 == 0) && this.hit(target)) {
+						var creatures = this.hit(target);
 						for (var i=0;i<creatures.length;i++) {
-							creatures[i].obj.takeDamage(GAME.SPELLS.fireball.damage, this.caster);
+							creatures[i].obj.takeDamage(this.damage, this.caster);
 						}
 					}
 				}).collision()
 				
 			this.caster = caster;
+			this.damage = this.calcSpellDamage(GAME.SPELLS.Fireball, caster);
 			this.stop().animate('burn', 10, -1);
 			
 			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 12*TILE_WIDTH);
@@ -798,6 +852,7 @@ function doCraftyInitialization() {
 		//Crafty.e('Treasure').Treasure(4, 4, 'helm', 4);
 		//Crafty.e('Treasure').Treasure(5, 5, 'staff', 3);
 		
+		Dungeon.Clear();
 		Dungeon.Generate();
 		
 		g_game.mapReveal = [];
@@ -869,10 +924,9 @@ function doCraftyInitialization() {
 				}
 			}
 		}
-
+		
+		restorePlayers();
 		centerOnPlayers();
-
-
 		
 		var bBossPlaced = false;
 		var bExitPlaced = false;
@@ -930,7 +984,11 @@ function doCraftyInitialization() {
 			//.css({ "text-align": "center", "font-family": GAME_FONT, "font-size": "44px" });
 		} catch (ex) {;}
 		
-		Crafty.load(['./images/oryx_roguelike_16x24.png'], function() {
+		Crafty.load(['./images/equipment_fighter.png','./images/equip_icons_fighter.png'
+			,'./images/equipment_wizard.png','./images/equip_icons_wizard.png','./images/oryx_roguelike_16x24.png'
+			,'./audio/sfx/swing1.wav','./audio/sfx/swing2.wav','./audio/sfx/swing3.wav'
+			,'./audio/sfx/hurt1.wav'
+			], function() {
 					
 			Crafty.sprite(1, './images/slash.png', {
 				slash_effect: [0*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
@@ -1044,7 +1102,7 @@ function doCraftyInitialization() {
 				wizard: [12*TILE_WIDTH, 24*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				magic_missle: [0*TILE_WIDTH, 10*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				fireball: [10*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				arrow: [4*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				arrow: [5*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				
 				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_archer: [6*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
@@ -1053,19 +1111,30 @@ function doCraftyInitialization() {
 				rat: [1*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				rat_king: [4*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				bat: [6*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-
+				skeleton_warrior: [1*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				skeleton_mage: [4*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				skeleton_necro: [5*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				
 				wall: [0*TILE_WIDTH, 13*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				ceiling: [7*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				floor: [9*TILE_WIDTH, 15*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				entrance: [8*TILE_WIDTH, 14*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				exit: [14*TILE_WIDTH, 16*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 			});
-
-			/*Crafty.sprite(1, './images/tiles.png', {
-				wall: [0, 1*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				ceiling: [7*TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT],
-				floor: [8*TILE_WIDTH, 3*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-			});*/
+			
+			g_game.sounds.swing1 = new buzz.sound( "./audio/sfx/swing1", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.swing2 = new buzz.sound( "./audio/sfx/swing2", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.swing3 = new buzz.sound( "./audio/sfx/swing3", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.hurt1 = new buzz.sound( "./audio/sfx/hurt1", {
+				formats: [ "wav" ]
+			});
+			
 
 		
 			Crafty.scene("main");
@@ -1094,10 +1163,10 @@ function doCraftyInitialization() {
 	<div id="divwizardHealthText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divwizardManaText" style="position: absolute;z-index: 11000; color: #9D9D9D; text-align: center;">00</div> 
 	<div id="divwizardSpells" style="background-image: url(./images/spell_background.png); position: absolute;z-index: 11000;">
-		<img id="imgSpell_missle" class="spellImage" src="./images/spell_missle.png" />
-		<img id="imgSpell_fireball" class="spellImage" src="./images/spell_fireball.png" />
-		<img id="imgSpell_sleep" class="spellImage" src="./images/spell_sleep.png" />
-		<img id="imgSpell_lightening" class="spellImage" src="./images/spell_lightening.png" />
+		<img id="imgSpell_Missle" class="spellImage" src="./images/spell_missle.png" />
+		<img id="imgSpell_Fireball" class="spellImage" src="./images/spell_fireball.png" />
+		<img id="imgSpell_Sleep" class="spellImage" src="./images/spell_sleep.png" />
+		<img id="imgSpell_Lightening" class="spellImage" src="./images/spell_lightening.png" />
 	</div>
 	<div id="divwizardControls" class="playerControls" style="background-image: url(./images/controls.png); position: absolute;z-index: 11000;">
 		<div id="divKeyUp" class="keyText">W</div>
