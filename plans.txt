@@ -2,13 +2,11 @@ PLANS
 
 Wizard
 --------
--sleep spell
--lighting spell
 -start spell animation
 
 
--death animtion, flying bones
--save progress
+-potions
+-must kill boss to open exit
 -handle player death
 -splash screen for each dungeon
 -music

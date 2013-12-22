@@ -79,11 +79,26 @@ window.GAME = {
 			range: 200,
 			sound: 'fireball'
 		},
+		Sleep: {
+			mana: 17,
+			damage: 0,
+			speed: 8,
+			range: 160,
+			aoe: 2,
+			sound: 'sleep'
+		},
+		Lightening: {
+			mana: 20,
+			damage: 12,
+			speed: 8,
+			range: 160,
+			sound: 'lightening'
+		},
 		Arrow: {
 			mana: 4,
 			damage: 2,
 			speed: 1,
-			range: 120,
+			range: 180,
 			sound: 'arrow'
 		}
 	},
@@ -98,8 +113,8 @@ window.GAME = {
 		wizard: [
 			{ health: 8, mana: 7 },
 			{ health: 9, mana: 12 },
-			{ health: 12, mana: 18 },
-			{ health: 15, mana: 24 },
+			{ health: 12, mana: 16 },
+			{ health: 15, mana: 19 },
 			{ health: 19, mana: 30 }
 		]
 	},
@@ -111,7 +126,12 @@ window.GAME = {
 				{ sprite: 'rat_king', 	prob: 1,	type: 'fighter', 	level: 2, 	health: 22,	 	mana: 0, 	offense: 12, 	defense: 12		},
 				{ sprite: 'rat', 		prob: 5,	type: 'fighter', 	level: 1, 	health: 9, 	mana: 0, 	offense: 6, 	defense: 6 		},
 				{ sprite: 'bat', 		prob: 4,	type: 'fighter', 	level: 1, 	health: 9, 	mana: 0, 	offense: 6, 	defense: 6 		}
-			]
+			],
+			graphics: {
+				wall: 'wall_brick',
+				ceiling: 'ceiling_brick',
+				floor: 'floor_cracks'
+			}
 		},
 		{
 			name: 'The Orc Kingdom',
@@ -120,7 +140,12 @@ window.GAME = {
 				{ sprite: 'orc_chief', 	prob: 1,	type: 'fighter', 	level: 3, 	health: 26,	 	mana: 0, 	offense: 22, 	defense: 18		},
 				{ sprite: 'orc', 		prob: 6,	type: 'fighter', 	level: 2, 	health: 14, 	mana: 0, 	offense: 12, 	defense: 12 	},
 				{ sprite: 'orc_archer', prob: 3,	type: 'caster',		level: 2, 	health: 11, 	mana: 4, 	offense: 2, 	defense: 8,		spell: 'Arrow' }
-			]
+			],
+			graphics: {
+				wall: 'wall_mud',
+				ceiling: 'ceiling_mud',
+				floor: 'floor_mouldy'
+			}
 		},
 		{
 			name: 'The Skeleton Maze',
@@ -130,7 +155,12 @@ window.GAME = {
 				{ sprite: 'skeleton_warrior', 	prob: 1,	type: 'fighter', 	level: 3, 	health: 26,	 	mana: 0, 	offense: 22, 	defense: 18		},
 				{ sprite: 'skeleton_mage', 		prob: 7,	type: 'caster', 	level: 2, 	health: 14, 	mana: 4, 	offense: 5, 	defense: 12,	spell: 'Missle'	},
 				{ sprite: 'skeleton_necro', 	prob: 1,	type: 'caster',		level: 2, 	health: 11, 	mana: 8, 	offense: 6, 	defense: 8,		spell: 'Fireball' }
-			]
+			],
+			graphics: {
+				wall: 'wall_mud',
+				ceiling: 'ceiling_mud',
+				floor: 'floor_cracks'
+			}
 		},
 	]
 

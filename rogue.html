@@ -51,6 +51,7 @@ var g_game = {
 		}
 	},
 	sounds: {},
+	music: {},
 	curLevel: 0
 };
 
@@ -94,8 +95,10 @@ function centerOnPlayers() {
 		var newY = Math.floor((g_game.fighter.locY + g_game.wizard.locY+1)/2);
 		Crafty.viewport.x = VIEW_WIDTH/2 - newX * TILE_WIDTH;
 		Crafty.viewport.y = VIEW_HEIGHT/2 - newY * TILE_HEIGHT;
+		//Crafty.viewport.pan('x', Crafty.viewport.x - (VIEW_WIDTH/2 - newX * TILE_WIDTH), 10);
+		//Crafty.viewport.pan('y', Crafty.viewport.y - (VIEW_HEIGHT/2 - newY * TILE_HEIGHT), 10);
 		updateMiniMap();
-	} catch(ex) {;}
+	} catch(ex) {}
 }
 
 function fadeOutControls() {
@@ -112,10 +115,10 @@ function savePlayers() {
 		wizard: {
 			xp: g_game.wizard.xp,
 			equipment: g_game.wizard.equipment
-		},
-		level: g_game.curLevel
+		}
 	}
 
+	localStorage.curLevel = g_game.curLevel;
 	localStorage.saveGame = JSON.stringify(saveGame);
 }
 
@@ -184,7 +187,7 @@ function doCraftyInitialization() {
 		level: 1,
 
 		Mob: function(x, y, type) {
-			this.requires('2D, ' + RENDERING_MODE + ', Collision, LitObject, ' + type.toLowerCase())
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, Delay, LitObject, ' + type.toLowerCase())
 				.attr( { x: x * TILE_WIDTH, y: y * TILE_HEIGHT, z: 100 } )
 				.collision()
 				.LitObject()
@@ -212,6 +215,7 @@ function doCraftyInitialization() {
 		},
 		takeDamage: function(amt, from) {
 
+			this.sleeping = false;
 			Crafty.e('FloatingText')
 				.FloatingText(this.locX, this.locY, amt, '#BE2633');
 			
@@ -230,6 +234,23 @@ function doCraftyInitialization() {
 					}
 				}
 				this.destroy();
+				// flying bones
+				for (var i=0;i<2 + Math.floor(Math.random()*3);i++) {
+					Crafty.e('2D, ' + RENDERING_MODE + ', ' + (i==0 ? 'skull' : 'bone'))
+						.attr({ x: this.x + TILE_WIDTH/4 + TILE_WIDTH*Math.random(), y: this.y + TILE_HEIGHT/4 + Math.random()*TILE_HEIGHT/2, z: this.z+1 })
+						.bind('EnterFrame', function() {
+							this.frameCount = this.frameCount ? this.frameCount + 1 : 1;
+							this.dx = this.dx ? this.dx : 2 - Math.random() * 4;
+							this.dy = this.dy ? this.dy : -3 - Math.random() * 4;
+							this.dy += 0.3;
+							this.duration = this.duration ? this.duration : 15 + 30 * Math.random();
+							this.attr({ x: this.x + this.dx, y: this.y + this.dy });
+							if (this.frameCount > this.duration) {
+								this.destroy();
+							}
+						});
+				}
+				
 			}
 		},
 		calcDamageTo: function(mob) {
@@ -237,6 +258,13 @@ function doCraftyInitialization() {
 			var reduction = Math.random()*mob.defense/(30 * mob.level);
 			dmg = Math.floor(dmg - dmg*reduction);
 			return Math.max(1, dmg);
+		},
+		sleep: function() {
+			this.sleeping = true;
+				
+			this.delay(function() {
+				this.sleeping = false;
+			}, 4000);
 		}
 	});
 
@@ -272,32 +300,38 @@ function doCraftyInitialization() {
 					}
 					// decide move
 					if ((frameObj.frame + this.fuzzer) % 50 == 0) {
-						var players = Crafty('Player');
-						var chase = undefined;
-						var closestDist = 10000;
-						for (var i=0;i<players.length;i++) {
-							var dx = Math.abs(Crafty(players[i]).locX - this.locX);
-							var dy = Math.abs(Crafty(players[i]).locY - this.locY);
-							var dist = dx + dy;
-							if (dx <= 10 && dy <= 10 && dist < closestDist) {
-								chase = Crafty(players[i]);
-								closestDist = dist;
-							}
+						if (this.sleeping) {
+							Crafty.e('FloatingText')
+								.FloatingText(this.locX- 0.5, this.locY, 'zzz', '#31A2F2');
 						}
-						if (chase) {
-							// go after player
-							var dx = chase.locX - this.locX;
-							var dy = chase.locY - this.locY;
-							var movement = { x: (dx ? Math.abs(dx)/dx : 0), y: (dy ? Math.abs(dy)/dy : 0) };
-							var dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
-							if (props.type == 'caster' && this.mana >= GAME.SPELLS[props.spell].mana && (dist <= Math.abs(dx) || dist <= Math.abs(dy))) {
-								// cast spell
-								Crafty.e(props.spell)
-									[props.spell](this.locX, this.locY, movement, this, 'Player');
-								this.mana -= GAME.SPELLS[props.spell].mana;
+						else {
+							var players = Crafty('Player');
+							var chase = undefined;
+							var closestDist = 10000;
+							for (var i=0;i<players.length;i++) {
+								var dx = Math.abs(Crafty(players[i]).locX - this.locX);
+								var dy = Math.abs(Crafty(players[i]).locY - this.locY);
+								var dist = dx + dy;
+								if (dx <= 10 && dy <= 10 && dist < closestDist) {
+									chase = Crafty(players[i]);
+									closestDist = dist;
+								}
 							}
-							else {
-								this.moveMob(movement);
+							if (chase) {
+								// go after player
+								var dx = chase.locX - this.locX;
+								var dy = chase.locY - this.locY;
+								var movement = { x: (dx ? Math.abs(dx)/dx : 0), y: (dy ? Math.abs(dy)/dy : 0) };
+								var dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
+								if (props.type == 'caster' && this.mana >= GAME.SPELLS[props.spell].mana && (dist <= Math.abs(dx) || dist <= Math.abs(dy))) {
+									// cast spell
+									Crafty.e(props.spell)
+										[props.spell](this.locX, this.locY, movement, this, 'Player');
+									this.mana -= GAME.SPELLS[props.spell].mana;
+								}
+								else {
+									this.moveMob(movement);
+								}
 							}
 						}
 					}
@@ -514,6 +548,14 @@ function doCraftyInitialization() {
 				g_game.curLevel = Math.min(GAME.DUNGEONLEVELS.length-1, g_game.curLevel + 1);
 				savePlayers();
 				Crafty.scene("main");
+				return
+			}
+			var exits = this.hit('entrance');
+			if (exits) {
+				g_game.curLevel = Math.max(0, g_game.curLevel - 1);
+				savePlayers();
+				Crafty.scene("main");
+				return
 			}
 		},
 		calcStats: function() {
@@ -562,6 +604,18 @@ function doCraftyInitialization() {
 						this.bCasting = true;
 						this.mana -= GAME.SPELLS.Fireball.mana;
 						this.spell = 'Fireball';
+						this.showHealth('wizard');
+					}
+					else if (evt.key == Crafty.keys['3'] && this.mana >= GAME.SPELLS.Sleep.mana) {
+						this.bCasting = true;
+						this.mana -= GAME.SPELLS.Sleep.mana;
+						this.spell = 'Sleep';
+						this.showHealth('wizard');
+					}
+					else if (evt.key == Crafty.keys['4'] && this.mana >= GAME.SPELLS.Lightening.mana) {
+						this.bCasting = true;
+						this.mana -= GAME.SPELLS.Lightening.mana;
+						this.spell = 'Lightening';
 						this.showHealth('wizard');
 					}
 				})
@@ -690,6 +744,170 @@ function doCraftyInitialization() {
 		}
 	});
 
+	Crafty.c('Sleep', {
+		speed: GAME.SPELLS.Sleep.speed*3,
+		range: GAME.SPELLS.Sleep.range*3,
+		exploded: false,
+	
+		Sleep: function(x, y, direction, caster, target) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, Spell, sleep, SpriteAnimation, Delay')
+				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 200})
+				.animate('explode', [[1*TILE_WIDTH, 8*TILE_HEIGHT], [2*TILE_WIDTH, 8*TILE_HEIGHT], [3*TILE_WIDTH, 8*TILE_HEIGHT], [4*TILE_WIDTH, 8*TILE_HEIGHT]])
+				.bind('EnterFrame', function(frameObj) {
+					if (this.exploded) {
+						return;
+					}
+					this.attr({ x: this.x + direction.x*this.speed, y: this.y + direction.y*this.speed });
+					this.range -= this.speed;
+					if (this.range <= 0) {
+						this.explode();
+					}
+					else if (this.hit('solid')) {
+						this.explode();
+					}
+					else if (this.hit(target)) {
+						this.explode();
+					}
+				}).collision()
+				
+			this.caster = caster;
+			this.target = target;
+
+			return this;
+		},
+		explode: function() {
+			this.exploded = true;
+			this.attr({ x: this.x - this.x % TILE_WIDTH, y: this.y - this.y % TILE_HEIGHT });
+			this.stop().animate('explode', 10, 0);
+			this.delay(function() {
+				for (var y=0-GAME.SPELLS.Sleep.aoe;y<=GAME.SPELLS.Sleep.aoe;y++) {
+					for (var x=0-GAME.SPELLS.Sleep.aoe;x<=GAME.SPELLS.Sleep.aoe;x++) {
+						if (Math.abs(x) + Math.abs(y) <= GAME.SPELLS.Sleep.aoe) {
+							Crafty.e('SleepSmoke').SleepSmoke(this.x + x*TILE_WIDTH, this.y + y*TILE_HEIGHT, this.target);
+						}
+					}
+				}
+				this.destroy();
+			}, 1000 * 15/50);
+			
+		}
+	});
+
+	Crafty.c('SleepSmoke', {
+		duration: 50,
+		
+		SleepSmoke: function(x, y, target) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, smoke')
+				.attr({ x: x, y: y, z: 200 })
+				this.bind('EnterFrame', function(frameObj) {
+					if (frameObj.frame % 10 == 0) {
+						this.duration -= 10;
+						if (this.duration <= 0) {
+							this.destroy();
+							return;
+						}
+						this.alpha = this.alpha - 0.1;
+						var targets = this.hit(target);
+						if (targets) {
+							for (var i=0;i<targets.length;i++) {
+								targets[i].obj.sleep();
+							}
+						}
+					}
+				}).collision();
+			this.alpha = 0.6;
+			return this;
+		}
+		
+	});
+
+	Crafty.c('Lightening', {
+		speed: GAME.SPELLS.Lightening.speed*3,
+		range: GAME.SPELLS.Lightening.range*3,
+	
+		Lightening: function(x, y, direction, caster, target) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, Spell, lightening')
+				.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 100})
+				.bind('EnterFrame', function(frameObj) {
+					this.attr({ x: this.x + direction.x*this.speed, y: this.y + direction.y*this.speed });
+					this.sprite(Math.floor(Math.random()*4)*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+					this.range -= this.speed;
+					if (this.range <= 0) {
+						this.destroy();
+					}
+					else if (this.hit('solid')) {
+						this.destroy();
+					}
+					else if (this.hit(target)) {
+						var creatures = this.hit(target);
+						for (var i=0;i<creatures.length;i++) {
+							//var xp = creatures[i].obj.takeDamage(this.damage, this.caster);
+							this.explode(creatures[i].obj.x, creatures[i].obj.y, target);
+							g_game.sounds.lightening_strike.play();
+						}
+						this.destroy();
+					}
+				}).collision()
+				
+			this.caster = caster;
+			this.damage = this.calcSpellDamage(GAME.SPELLS.Lightening, caster);
+			g_game.sounds.lightening.play();
+				
+			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 4*TILE_WIDTH);
+			this.attach(lightSource);
+
+			return this;
+		},
+		explode: function(x, y, target) {
+			this.exploded = true;
+			this.attr({ x: this.x - this.x % TILE_WIDTH, y: this.y - this.y % TILE_HEIGHT });
+			Crafty.e('Electricity').Electricity(this.x, this.y, target, this.damage, this.caster);
+		}
+	});
+
+	Crafty.c('Electricity', {
+		duration: 30,
+		
+		Electricity: function(x, y, target, damage, caster) {
+			this.requires('2D, ' + RENDERING_MODE + ', Collision, lightening')
+				.attr({ x: x, y: y, z: 200 })
+				this.bind('EnterFrame', function(frameObj) {
+					this.sprite(Math.floor(Math.random()*4)*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+					if (frameObj.frame % 10 == 0) {
+						this.duration -= 10;
+						if (this.duration <= 0) {
+							this.destroy();
+							return;
+						}
+					}
+				}).collision();
+				
+			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 4*TILE_WIDTH);
+			this.attach(lightSource);
+
+			// find all adjoining creatures
+			var aoe = Crafty.e('2D, ' + RENDERING_MODE + ', elec_aoe, Collision')
+				.attr({ alpha: 0, x: this.x - TILE_WIDTH, y: this.y - TILE_HEIGHT })
+				.collision();
+			var creatures = aoe.hit(target);
+			var electrifiedCreatures = [];
+			for (var i=0;i<creatures.length;i++) {
+				if (!creatures[i].obj.electrified) {
+					creatures[i].obj.takeDamage(damage, caster);
+					creatures[i].obj.electrified = true;
+					electrifiedCreatures.push(creatures[i].obj);
+					Crafty.e('Electricity').Electricity(creatures[i].obj.x, creatures[i].obj.y, target, damage, caster);
+				}
+			}
+			for (var i=0;i<electrifiedCreatures.length;i++) {
+				electrifiedCreatures[i].electrified = false;
+			}
+
+			return this;
+		}
+		
+	});
+	
 	Crafty.c('Missle', {
 		speed: GAME.SPELLS.Missle.speed*3,
 		range: GAME.SPELLS.Missle.range*3,
@@ -705,18 +923,21 @@ function doCraftyInitialization() {
 					}
 					else if (this.hit('solid')) {
 						this.destroy();
+						g_game.sounds.missle_hit.play();
 					}
 					else if (this.hit(target)) {
 						var creatures = this.hit(target);
 						for (var i=0;i<creatures.length;i++) {
 							var xp = creatures[i].obj.takeDamage(this.damage, this.caster);
 						}
+						g_game.sounds.missle_hit.play();
 						this.destroy();
 					}
 				}).collision()
 				
 			this.caster = caster;
 			this.damage = this.calcSpellDamage(GAME.SPELLS.Missle, caster);
+			g_game.sounds.missle.play();
 				
 			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 4*TILE_WIDTH);
 			this.attach(lightSource);
@@ -753,6 +974,7 @@ function doCraftyInitialization() {
 			this.caster = caster;
 			this.damage = this.calcSpellDamage(GAME.SPELLS.Fireball, caster);
 			this.stop().animate('burn', 10, -1);
+			g_game.sounds.fireball.play();
 			
 			var lightSource = Crafty.e('LightSource').LightSource(this.x + TILE_WIDTH/2, this.y + TILE_HEIGHT/2, 12*TILE_WIDTH);
 			this.attach(lightSource);
@@ -796,16 +1018,21 @@ function doCraftyInitialization() {
 				.collision()
 				.bind('EnterFrame', function(frameObj) {
 					if (frameObj.frame % 11 == 0) {
-						var litObjs = this.hit('LitObject');
-						for (var i=0;i<litObjs.length;i++) {
-							var dist = Math.sqrt(Math.pow(this.x + d/2 - litObjs[i].obj.x - TILE_WIDTH/2, 2) 
-										+ Math.pow(this.y + d/2 - litObjs[i].obj.y - TILE_HEIGHT/2, 2));
-							litObjs[i].obj.light(0.2 + ((d/2) - dist)/(d/2), frameObj.frame);
-						}
+						this.lightUp(frameObj.frame);
 					}
 				})
 				
+			this.radius = d;
 			return this;
+		},
+		lightUp: function(frame) {
+			var d = this.radius;
+			var litObjs = this.hit('LitObject');
+			for (var i=0;i<litObjs.length;i++) {
+				var dist = Math.sqrt(Math.pow(this.x + d/2 - litObjs[i].obj.x - TILE_WIDTH/2, 2) 
+							+ Math.pow(this.y + d/2 - litObjs[i].obj.y - TILE_HEIGHT/2, 2));
+				litObjs[i].obj.light(0.2 + ((d/2) - dist)/(d/2), frame);
+			}
 		}
 	});
 		
@@ -851,6 +1078,8 @@ function doCraftyInitialization() {
 		//Crafty.e('Treasure').Treasure(4, 3, 'pants', 1);
 		//Crafty.e('Treasure').Treasure(4, 4, 'helm', 4);
 		//Crafty.e('Treasure').Treasure(5, 5, 'staff', 3);
+
+		g_game.curLevel = localStorage.curLevel || 0;
 		
 		Dungeon.Clear();
 		Dungeon.Generate();
@@ -864,12 +1093,12 @@ function doCraftyInitialization() {
 				g_game.mapReveal[y][x] = false;
 				var tile = Dungeon.map[x][y];
  				if (tile == 2) {
-					var sprite = 'wall';
+					var sprite = GAME.DUNGEONLEVELS[g_game.curLevel].graphics.wall;
 					if (Dungeon.map[x][y+1] && Dungeon.map[x][y+1] == 2) {
-						sprite = 'ceiling';
+						sprite = GAME.DUNGEONLEVELS[g_game.curLevel].graphics.ceiling;
 					}
-					if (!bEntrancePlaced && sprite == 'wall') {
-						g_game.entrance = Crafty.e('2D, ' + RENDERING_MODE + ', Collision, LitObject, solid, entrance')
+					if (!bEntrancePlaced && sprite == GAME.DUNGEONLEVELS[g_game.curLevel].graphics.wall) {
+						g_game.entrance = Crafty.e('2D, ' + RENDERING_MODE + ', Collision, LitObject, entrance')
 							.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 130 })
 							.LitObject()
 							.collision();
@@ -893,7 +1122,7 @@ function doCraftyInitialization() {
 					}
 					else {
 						// floor
-						Crafty.e('2D, ' + RENDERING_MODE + ', floor, Collision, LitObject')
+						Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].graphics.floor + ', Collision, LitObject')
 							.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 1})
 							.LitObject()
 							.collision();
@@ -947,7 +1176,6 @@ function doCraftyInitialization() {
 										.collision()
 										.LitObject();*/
 									bExitPlaced = true;
-									g_game.exit.bIAmExit = true;
 									bMobPlaced = true;
 								}
 								else if (!(i==0 && bBossPlaced)) {
@@ -974,6 +1202,10 @@ function doCraftyInitialization() {
 		
 		updateMiniMap();
 		fadeOutControls();
+		
+		g_game.song = g_game.music.song1;
+		g_game.song.setVolume(50).play().loop();
+
 	});
 
 	Crafty.scene("loading", function () {
@@ -985,9 +1217,12 @@ function doCraftyInitialization() {
 		} catch (ex) {;}
 		
 		Crafty.load(['./images/equipment_fighter.png','./images/equip_icons_fighter.png'
-			,'./images/equipment_wizard.png','./images/equip_icons_wizard.png','./images/oryx_roguelike_16x24.png'
-			,'./audio/sfx/swing1.wav','./audio/sfx/swing2.wav','./audio/sfx/swing3.wav'
+			,'./images/equipment_wizard.png', './images/equip_icons_wizard.png', './images/oryx_roguelike_16x24.png'
+			,'./audio/sfx/swing1.wav', './audio/sfx/swing2.wav','./audio/sfx/swing3.wav'
 			,'./audio/sfx/hurt1.wav'
+			,'./audio/sfx/missle.wav', './audio/sfx/missle_hit.wav', './audio/sfx/fireball.wav'
+			,'./audio/sfx/lightening.wav',' ./audio/sfx/lightening_strike.wav'
+			,'./audio/music/DST-Arch-Delerium.mp3'
 			], function() {
 					
 			Crafty.sprite(1, './images/slash.png', {
@@ -1103,6 +1338,10 @@ function doCraftyInitialization() {
 				magic_missle: [0*TILE_WIDTH, 10*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				fireball: [10*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				arrow: [5*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				sleep: [0*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				smoke: [3*TILE_WIDTH, 8*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				lightening: [3*TILE_WIDTH, 9*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				elec_aoe: [0, 0, 3*TILE_WIDTH, 3*TILE_HEIGHT],
 				
 				orc: [5*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				orc_archer: [6*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
@@ -1115,9 +1354,15 @@ function doCraftyInitialization() {
 				skeleton_mage: [4*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				skeleton_necro: [5*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				
-				wall: [0*TILE_WIDTH, 13*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				ceiling: [7*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
-				floor: [9*TILE_WIDTH, 15*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				skull: [214*3, 848*3, 12*3, 12*3],
+				bone: [256*3, 1020*3, 8*3, 8*3],
+				
+				wall_brick: [0*TILE_WIDTH, 13*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				ceiling_brick: [7*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				floor_cracks: [9*TILE_WIDTH, 15*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				wall_mud: [2*TILE_WIDTH, 13*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				ceiling_mud: [13*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				floor_mouldy: [9*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				entrance: [8*TILE_WIDTH, 14*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				exit: [14*TILE_WIDTH, 16*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 			});
@@ -1134,7 +1379,24 @@ function doCraftyInitialization() {
 			g_game.sounds.hurt1 = new buzz.sound( "./audio/sfx/hurt1", {
 				formats: [ "wav" ]
 			});
-			
+			g_game.sounds.missle = new buzz.sound( "./audio/sfx/missle", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.missle_hit = new buzz.sound( "./audio/sfx/missle_hit", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.fireball = new buzz.sound( "./audio/sfx/fireball", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.lightening = new buzz.sound( "./audio/sfx/lightening", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.lightening_strike = new buzz.sound( "./audio/sfx/lightening_strike", {
+				formats: [ "wav" ]
+			});
+			g_game.music.song1 = new buzz.sound( "./audio/music/DST-Arch-Delerium", {
+				formats: [ "mp3" ]
+			});		
 
 		
 			Crafty.scene("main");
