@@ -61,6 +61,11 @@ window.addEventListener("load", function(event) {
 	VIEW_HEIGHT = $(document).height();
 	Crafty.init(VIEW_WIDTH, VIEW_HEIGHT);
 	
+	doCraftyInitialization();
+});
+
+function layoutGUI() {
+	$('#divGUI').show();
 	var pos = $('#cr-stage').offset();
 	$('#imgwizardBox').css({ top: pos.top,// + $('#cr-stage').height() - $('#imgwizardBox').height(), 
 							left: pos.left });
@@ -83,11 +88,8 @@ window.addEventListener("load", function(event) {
 	$('#divOverlay').css({ width: $('#cr-stage').width(), height: $('#cr-stage').height(), left: pos.left+2, top: pos.top+2 });
 
 	$('#canvasMiniMap').css({ width: 64*3, height: 64*3, left: pos.left+3, top: pos.top + $('#cr-stage').height() - 64*3 - 6 });
-	
-	
-	doCraftyInitialization();
-							
-});
+
+}
 
 function centerOnPlayers() {
 	try {
@@ -106,6 +108,34 @@ function fadeOutControls() {
 	$('div.playerControls').animate({ opacity: 0 }, 2000);
 }
 
+function getTextForLoot(level) {
+	if (level == 5) {
+		return 'Epic!';
+	}
+	else if (level == 4) {
+		return 'Legendary';
+	}
+	else if (level == 3) {
+		return 'Enchanted';
+	}
+	else if (level == 2) {
+		return 'Enforced';
+	}
+	return 'Sturdy';
+
+}
+
+function getXPforLevel(level) {
+	var amt = 0;
+	var i = level;
+	while (i > 0) {
+		amt += i;
+		i--;
+	}
+	
+	return amt;
+}
+
 function savePlayers() {
 	var saveGame = {
 		fighter: {
@@ -118,7 +148,7 @@ function savePlayers() {
 		}
 	}
 
-	localStorage.curLevel = g_game.curLevel;
+	localStorage.curLevel = parseInt(g_game.curLevel, 10);
 	localStorage.saveGame = JSON.stringify(saveGame);
 }
 
@@ -130,11 +160,15 @@ function restorePlayers() {
 		g_game.fighter.addXP(0);
 		g_game.fighter.calcStats();
 		g_game.fighter.dressInEquipment();
+		g_game.fighter.health = g_game.fighter.maxHealth;
+
 		g_game.wizard.xp = saveGame.wizard.xp;
 		g_game.wizard.equipment = saveGame.wizard.equipment;
 		g_game.wizard.addXP(0);
 		g_game.wizard.calcStats();
 		g_game.wizard.dressInEquipment();
+		g_game.wizard.health = g_game.wizard.maxHealth;
+		g_game.wizard.mana = g_game.wizard.maxMana;
 	}
 }
 
@@ -181,7 +215,6 @@ function doCraftyInitialization() {
 		maxHealth: 10,
 		mana: 4,
 		maxMana: 4,
-		xpVal: 1,
 		offense: 6,
 		defense: 6,
 		level: 1,
@@ -221,7 +254,7 @@ function doCraftyInitialization() {
 			
 			this.health = Math.max(0, this.health - amt);
 			if (this.health <= 0) {
-				from.addXP(this.xpVal);
+				from.addXP(getXPforLevel(this.level));
 				// loot
 				if (Math.random() < 0.2) {
 					var item = Math.floor(Math.random() * 9);
@@ -233,7 +266,7 @@ function doCraftyInitialization() {
 						i++;
 					}
 				}
-				this.destroy();
+				
 				// flying bones
 				for (var i=0;i<2 + Math.floor(Math.random()*3);i++) {
 					Crafty.e('2D, ' + RENDERING_MODE + ', ' + (i==0 ? 'skull' : 'bone'))
@@ -251,6 +284,7 @@ function doCraftyInitialization() {
 						});
 				}
 				
+				this.doDestroy();
 			}
 		},
 		calcDamageTo: function(mob) {
@@ -270,14 +304,14 @@ function doCraftyInitialization() {
 
 	Crafty.c('FloatingText', {
 	
-		FloatingText: function(x, y, txt, color) {
+		FloatingText: function(x, y, txt, color, speed) {
 			this.requires('2D, ' + RENDERING_MODE + ', Text, Tween')
-				.attr({ w: 20, h: 20, x: x*TILE_WIDTH + TILE_WIDTH/2, y: y*TILE_HEIGHT, z: 200 })
+				.attr({ w: 320, h: 20, x: x*TILE_WIDTH + TILE_WIDTH/2, y: y*TILE_HEIGHT, z: 200 })
 				.textColor(color, 1)
 				.text(txt)
-				.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
+				.textFont({ size: "12pt", weight: 'bold', family: GAME_FONT })
 				//.css({ 'font-size': '16pt', 'font-weight': 'bold', 'font-family': GAME_FONT })
-				.tween({ y: y*TILE_HEIGHT - 48 }, 25)
+				.tween({ y: y*TILE_HEIGHT - 48 }, speed || 25)
 				.bind('TweenEnd', function() {
 					this.destroy();
 				});
@@ -328,6 +362,7 @@ function doCraftyInitialization() {
 									Crafty.e(props.spell)
 										[props.spell](this.locX, this.locY, movement, this, 'Player');
 									this.mana -= GAME.SPELLS[props.spell].mana;
+									g_game.sounds[GAME.SPELLS[props.spell].sound].play();
 								}
 								else {
 									this.moveMob(movement);
@@ -355,6 +390,9 @@ function doCraftyInitialization() {
 				g_game.slashEffects.getNextEffect().showSlash(mob.x, mob.y, movement);
 				g_game.sounds.hurt1.play();
 			}
+		},
+		doDestroy: function() {
+			this.destroy();
 		}
 	});
  	
@@ -513,8 +551,8 @@ function doCraftyInitialization() {
 			
 			if (this.level != level) {
 				// ding!
-				this.maxHealth = GAME.CHARLEVELS[this.playerType][level-1].health;
-				this.maxMana = GAME.CHARLEVELS[this.playerType][level-1].mana;
+				this.maxHealth = GAME.CHARLEVELS[this.playerType][Math.min(GAME.CHARLEVELS[this.playerType].length-1,level-1)].health;
+				this.maxMana = GAME.CHARLEVELS[this.playerType][Math.min(GAME.CHARLEVELS[this.playerType].length-1,level-1)].mana;
 			}
 			this.level = level;
 			this.showHealth();
@@ -528,9 +566,12 @@ function doCraftyInitialization() {
 						this[treasure.treasureType].sprite(GAME.EQUIPMENT[treasure.treasureType].slot*TILE_WIDTH, treasure.treasureLevel*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
 						this.equipment[treasure.treasureType] = treasure.treasureLevel;
 						treasure.destroy();
-						Crafty.e('FloatingText').FloatingText(this.locX-1, this.locY, 
-							'A+' + GAME.EQUIPMENT[treasure.treasureType].offense[treasure.treasureLevel]
-							+ '  D+' + GAME.EQUIPMENT[treasure.treasureType].defense[treasure.treasureLevel], '#A3CE27');
+						g_game.sounds.pickup.play();
+						Crafty.e('FloatingText').FloatingText(this.locX-1, this.locY
+							//'A+' + GAME.EQUIPMENT[treasure.treasureType].offense[treasure.treasureLevel]
+							//+ '  D+' + GAME.EQUIPMENT[treasure.treasureType].defense[treasure.treasureLevel]
+							, getTextForLoot(treasure.treasureLevel)
+							, '#A3CE27');
 
 						this.calcStats();
 					}
@@ -545,16 +586,16 @@ function doCraftyInitialization() {
 		lookForExit: function() {
 			var exits = this.hit('exit');
 			if (exits) {
-				g_game.curLevel = Math.min(GAME.DUNGEONLEVELS.length-1, g_game.curLevel + 1);
+				g_game.curLevel = Math.min(GAME.DUNGEONLEVELS.length-1, parseInt(g_game.curLevel, 10) + 1);
 				savePlayers();
-				Crafty.scene("main");
+				Crafty.scene("splash");
 				return
 			}
 			var exits = this.hit('entrance');
 			if (exits) {
-				g_game.curLevel = Math.max(0, g_game.curLevel - 1);
+				g_game.curLevel = Math.max(0, parseInt(g_game.curLevel, 10) - 1);
 				savePlayers();
-				Crafty.scene("main");
+				Crafty.scene("splash");
 				return
 			}
 		},
@@ -578,6 +619,13 @@ function doCraftyInitialization() {
 				g_game.slashEffects.getNextEffect().showSlash(mob.x, mob.y, movement);
 				g_game.sounds['swing' + Math.ceil(Math.random()*3)].play();
 			}
+		},
+		doDestroy: function() {
+			g_game.wizard.destroy();
+			g_game.fighter.destroy();
+			setTimeout(function() {
+				Crafty.scene("death");
+			}, 3000);
 		}
 		/*syncSprites: function() {
 			for (var key in this.equipment) {
@@ -599,24 +647,33 @@ function doCraftyInitialization() {
 						this.mana -= GAME.SPELLS.Missle.mana;
 						this.spell = 'Missle';
 						this.showHealth('wizard');
+						Crafty.e('FloatingText')
+							.FloatingText(this.locX-1, this.locY,	'Ort Por', '#31A2F2', 50);
+
 					}
 					else if (evt.key == Crafty.keys['2'] && this.mana >= GAME.SPELLS.Fireball.mana) {
 						this.bCasting = true;
 						this.mana -= GAME.SPELLS.Fireball.mana;
 						this.spell = 'Fireball';
 						this.showHealth('wizard');
+						Crafty.e('FloatingText')
+							.FloatingText(this.locX-1, this.locY,	'Vas Flam', '#31A2F2', 50);
 					}
 					else if (evt.key == Crafty.keys['3'] && this.mana >= GAME.SPELLS.Sleep.mana) {
 						this.bCasting = true;
 						this.mana -= GAME.SPELLS.Sleep.mana;
 						this.spell = 'Sleep';
 						this.showHealth('wizard');
+						Crafty.e('FloatingText')
+							.FloatingText(this.locX-1, this.locY,	'Kal Zu', '#31A2F2', 50);
 					}
 					else if (evt.key == Crafty.keys['4'] && this.mana >= GAME.SPELLS.Lightening.mana) {
 						this.bCasting = true;
 						this.mana -= GAME.SPELLS.Lightening.mana;
 						this.spell = 'Lightening';
 						this.showHealth('wizard');
+						Crafty.e('FloatingText')
+							.FloatingText(this.locX-1, this.locY,	'Grav Ex', '#31A2F2', 50);
 					}
 				})
 
@@ -1079,8 +1136,6 @@ function doCraftyInitialization() {
 		//Crafty.e('Treasure').Treasure(4, 4, 'helm', 4);
 		//Crafty.e('Treasure').Treasure(5, 5, 'staff', 3);
 
-		g_game.curLevel = localStorage.curLevel || 0;
-		
 		Dungeon.Clear();
 		Dungeon.Generate();
 		
@@ -1131,6 +1186,7 @@ function doCraftyInitialization() {
 			}
 		}
 
+		layoutGUI();
 		var bFighterPlaced = false;
 		var bWizardPlaced = false;
 		for (var y=0;y<Dungeon.map_size;y++) {
@@ -1202,31 +1258,38 @@ function doCraftyInitialization() {
 		
 		updateMiniMap();
 		fadeOutControls();
-		
-		g_game.song = g_game.music.song1;
-		g_game.song.setVolume(50).play().loop();
-
+	
 	});
 
 	Crafty.scene("loading", function () {
 		Crafty.background("#000");
-		try {
-		Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: 800, h: 20, x: VIEW_WIDTH/2 - 400, y: VIEW_HEIGHT/2-160 })
+		//try {
+		Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: 800, h: 20, x: VIEW_WIDTH/2 - 400, y: VIEW_HEIGHT/2-160, z: 1000 })
 			.text("Loading...")
+			.textColor('#fff', 1)
+			.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
 			//.css({ "text-align": "center", "font-family": GAME_FONT, "font-size": "44px" });
-		} catch (ex) {;}
+		//} catch (ex) {;}
 		
 		Crafty.load(['./images/equipment_fighter.png','./images/equip_icons_fighter.png'
 			,'./images/equipment_wizard.png', './images/equip_icons_wizard.png', './images/oryx_roguelike_16x24.png'
 			,'./audio/sfx/swing1.wav', './audio/sfx/swing2.wav','./audio/sfx/swing3.wav'
-			,'./audio/sfx/hurt1.wav'
+			,'./audio/sfx/hurt1.wav','./audio/sfx/pickup.wav','./audio/sfx/arrow.wav'
 			,'./audio/sfx/missle.wav', './audio/sfx/missle_hit.wav', './audio/sfx/fireball.wav'
 			,'./audio/sfx/lightening.wav',' ./audio/sfx/lightening_strike.wav'
-			,'./audio/music/DST-Arch-Delerium.mp3'
+			,'./images/oryx_roguelike_b_graveyard.png', './images/oryx_roguelike_b_catacombs.png'
+			,'./images/oryx_roguelike_b_castle.png','./images/oryx_roguelike_b_temple.png'
+			,'./images/oryx_roguelike_portraits.png'
+			,'./audio/music/DST-TheHauntedChapel.mp3'
 			], function() {
 					
 			Crafty.sprite(1, './images/slash.png', {
 				slash_effect: [0*TILE_WIDTH, 0*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT]
+			});
+
+			Crafty.sprite(1, './images/oryx_roguelike_portraits.png', {
+				portrait_fighter: [378, 288, 108, 108],
+				portrait_wizard: [138, 168, 108, 108]
 			});
 			
 			
@@ -1350,9 +1413,17 @@ function doCraftyInitialization() {
 				rat: [1*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				rat_king: [4*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				bat: [6*TILE_WIDTH, 26*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				skeleton: [0*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				skeleton_warrior: [1*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				skeleton_mage: [4*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				skeleton_necro: [5*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				skeleton_boss: [2*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				skeleton_archer: [3*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				skeleton_magic: [6*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				imp: [4*TILE_WIDTH, 29*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				death_knight: [11*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				death_mage: [16*TILE_WIDTH, 30*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				necromancer: [2*TILE_WIDTH, 32*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				
 				skull: [214*3, 848*3, 12*3, 12*3],
 				bone: [256*3, 1020*3, 8*3, 8*3],
@@ -1366,6 +1437,24 @@ function doCraftyInitialization() {
 				entrance: [8*TILE_WIDTH, 14*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				exit: [14*TILE_WIDTH, 16*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 			});
+
+			Crafty.sprite(1, './images/oryx_roguelike_b_graveyard.png', {
+				scene_entrance1: [24, 168, 240, 120],
+				scene_graveyard: [24, 456, 240, 120]
+			});
+
+			Crafty.sprite(1, './images/oryx_roguelike_b_catacombs.png', {
+				scene_catacombs1: [24, 312, 240, 120]
+			});
+			
+			Crafty.sprite(1, './images/oryx_roguelike_b_castle.png', {
+				scene_castle1: [24, 744, 240, 120]
+			});
+
+			Crafty.sprite(1, './images/oryx_roguelike_b_temple.png', {
+				scene_temple1: [24, 312, 240, 120]
+			});
+			
 			
 			g_game.sounds.swing1 = new buzz.sound( "./audio/sfx/swing1", {
 				formats: [ "wav" ]
@@ -1394,26 +1483,166 @@ function doCraftyInitialization() {
 			g_game.sounds.lightening_strike = new buzz.sound( "./audio/sfx/lightening_strike", {
 				formats: [ "wav" ]
 			});
-			g_game.music.song1 = new buzz.sound( "./audio/music/DST-Arch-Delerium", {
-				formats: [ "mp3" ]
-			});		
-
+			g_game.sounds.arrow = new buzz.sound( "./audio/sfx/arrow", {
+				formats: [ "wav" ]
+			});
+			g_game.sounds.pickup = new buzz.sound( "./audio/sfx/pickup", {
+				formats: [ "wav" ]
+			});
 		
-			Crafty.scene("main");
+			Crafty.scene("intro");
 			
 		});
+	});
+
+	Crafty.scene("death", function () {
+		$('#divGUI').hide();
+		Crafty.background("#000");		
+
+		Crafty.viewport.x = 0;
+		Crafty.viewport.y = 0;
+		
+		Crafty.e('2D, ' + RENDERING_MODE + ', scene_graveyard')
+			.attr({ x: VIEW_WIDTH/2 - 240/2, y: VIEW_HEIGHT/3 - 120/2, z: 1 })
+			
+		
+		Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: VIEW_WIDTH, x: 0, y: 96, z: 1000 })
+			.text('Death')
+			.textColor('#9D9D9D', 1)
+			.textFont({ size: "24pt", weight: 'bold', family: GAME_FONT })
+			.css({ 'text-align': 'center'})
+
+			
+		Crafty.e('2D, ' + RENDERING_MODE + ', Text, Keyboard').attr({ w: VIEW_WIDTH, x: 0, y: VIEW_HEIGHT-160, z: 1000 })
+			.text("Type space to try again...")
+			.textColor('#9D9D9D', 1)
+			.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
+			.css({ 'text-align': 'center'})
+			.bind('KeyDown', function(evt) {
+				if (evt.key == Crafty.keys.SPACE) {
+					Crafty.scene("splash");
+				}
+			})
+			
+
+	});
+
+	Crafty.scene("intro", function () {
+		$('#divGUI').hide();
+		Crafty.background("#000");		
+
+		Crafty.viewport.x = 0;
+		Crafty.viewport.y = 0;
+		
+		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic1)
+			.attr({ x: VIEW_WIDTH/2 - 240/2, y: VIEW_HEIGHT/3 - 120/2, z: 1 })
+			
+
+		Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: VIEW_WIDTH, x: 0, y: 64, z: 1000 })
+			.text("Two Friends, One Dungeon")
+			.textColor('#9D9D9D', 1)
+			.textFont({ size: "32pt", weight: 'bold', family: GAME_FONT })
+			.css({ 'text-align': 'center'})
+		
+		Crafty.e('2D, ' + RENDERING_MODE + ', Text, Keyboard').attr({ w: VIEW_WIDTH, x: 0, y: VIEW_HEIGHT-160, z: 1000 })
+			.text("Type space to continue...")
+			.textColor('#9D9D9D', 1)
+			.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
+			.css({ 'text-align': 'center'})
+			.bind('KeyDown', function(evt) {
+				if (evt.key == Crafty.keys.SPACE) {
+					Crafty.scene("splash");
+				}
+			})
+			
+		playSong('DST-TheHauntedChapel');
+
+	});
+
+	Crafty.scene("splash", function () {
+		$('#divGUI').hide();
+		Crafty.background("#000");		
+
+		g_game.curLevel = localStorage.curLevel || 0;
+
+		Crafty.viewport.x = 0;
+		Crafty.viewport.y = 0;
+		
+		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic1)
+			.attr({ x: VIEW_WIDTH/2 - 240/2, y: VIEW_HEIGHT/3 - 120/2, z: 1 })
+			
+		var speakers = {};
+		speakers.fighter = Crafty.e('2D, ' + RENDERING_MODE + ', portrait_fighter')
+			.attr({ x: VIEW_WIDTH/2 + 108/2, y: VIEW_HEIGHT/2, z: 10 })
+		speakers.wizard = Crafty.e('2D, ' + RENDERING_MODE + ', portrait_wizard')
+			.attr({ x: VIEW_WIDTH/2 - 3*108/2, y: VIEW_HEIGHT/2, z: 10 })
+					
+		Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: VIEW_WIDTH, x: 0, y: 64, z: 1000 })
+			.text("Stage " + (parseInt(g_game.curLevel, 10) + 1))
+			.textColor('#9D9D9D', 1)
+			.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
+			.css({ 'text-align': 'center'})
+
+		Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: VIEW_WIDTH, x: 0, y: 96, z: 1000 })
+			.text(GAME.DUNGEONLEVELS[g_game.curLevel].name)
+			.textColor('#9D9D9D', 1)
+			.textFont({ size: "24pt", weight: 'bold', family: GAME_FONT })
+			.css({ 'text-align': 'center'})
+
+			
+		var dlgCounter = 0;
+		var dlgInterval = setInterval(function() {
+			if (dlgCounter >= GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.dialog.length) {
+				clearInterval(dlgInterval);
+				Crafty.e('2D, ' + RENDERING_MODE + ', Text, Keyboard').attr({ w: VIEW_WIDTH, x: 0, y: VIEW_HEIGHT-160, z: 1000 })
+					.text("Type space to continue...")
+					.textColor('#9D9D9D', 1)
+					.textFont({ size: "16pt", weight: 'bold', family: GAME_FONT })
+					.css({ 'text-align': 'center'})
+					.bind('KeyDown', function(evt) {
+						if (evt.key == Crafty.keys.SPACE) {
+							Crafty.scene("main");
+						}
+					})
+			}
+			else {
+			var dialog = GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.dialog[dlgCounter];
+			Crafty.e('FloatingText')
+				.FloatingText(speakers[dialog.speaker].x/TILE_WIDTH - 1, speakers[dialog.speaker].y/TILE_HEIGHT - 0.25, 
+					dialog.text, '#31A2F2', 90);
+				
+			dlgCounter++;
+			}
+		
+		}, 2000);
+			
+		playSong(GAME.DUNGEONLEVELS[g_game.curLevel].song);
+
 	});
 	
 	Crafty.scene("loading");	
 
 }
-		
+
+function playSong(newSong) {
+	if (g_game.songTitle != newSong) {
+		g_game.songTitle = newSong;
+		if (g_game.song) {
+			g_game.song.stop();
+		}
+		g_game.song = new buzz.sound( "./audio/music/" + newSong, {
+			formats: [ "ogg" ]
+		});		
+		g_game.song.setVolume(60).play().loop();
+	}
+}		
 
 
 	</script>
 </head>
 <body>
 
+<div id="divGUI" style="width: 100%, height: 100%">
 	<img id="imgwizardBox" src="./images/charbox_wizard.png" style="position: absolute;z-index: 10000;" />
 	<div id="divwizardHealth" style="background: #BE2633;position: absolute;width: 33px; height: 30px;z-index: 9000"></div> 
 	<div id="divwizardMana" style="background: #005784;position: absolute;width: 30px; height: 42px;z-index: 9000"></div> 
@@ -1450,5 +1679,5 @@ function doCraftyInitialization() {
 	<canvas id="canvasMiniMap" style="position: absolute;z-index: 5000; border: 2px solid; opacity: 0.8;"></canvas>
 	
 	<div id="divOverlay" style="background-image: url(./images/meshx3.png);background-repeat:repeat;position: absolute;z-index: 8000"></div> 
-	
+</div>	
 </body>

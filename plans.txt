@@ -1,13 +1,14 @@
 PLANS
 
-Wizard
---------
--start spell animation
-
-
+NICE
 -potions
 -must kill boss to open exit
--handle player death
--splash screen for each dungeon
--music
+-3 window spash screens
+-alt key layout
+-boss taunts
+-astar
 
+MUST
+-win screen
+-move exits to correct pos
+-screenshot
