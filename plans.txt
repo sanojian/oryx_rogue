@@ -5,6 +5,8 @@ NICE
 -boss taunts
 -astar
 -mute button
+-sound exit opening
+-sound creature death
 
 MUST
-
+-credits

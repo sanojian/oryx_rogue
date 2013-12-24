@@ -100,6 +100,12 @@ function layoutGUI() {
 	$('#divKeyDown').css({ left: $('#divwizardControls').width()/2-3*3, top: 30*3 });
 	$('#divwizardSpells').css({ top: pos.top + $('#imgwizardBox').height() + 3*3,
 							left: pos.left + $('#imgwizardBox').width()/2 - 64*3/2, width: 64*3, height: 16*3 });
+	$('#divwizardSpellControls').css({ top: $('#divwizardSpells').offset().top + 14*3, left: $('#divwizardSpells').offset().left
+							, width: $('#divwizardSpells').width() });
+	$('#divKeySpell1').css({ left: (16/2-2)*3 });						
+	$('#divKeySpell2').css({ left: (3*16/2-2)*3 });						
+	$('#divKeySpell3').css({ left: (5*16/2-2)*3 });						
+	$('#divKeySpell4').css({ left: (7*16/2-2)*3 });						
 	$('#imgSpell_Fireball').css('left', 16*3);
 	$('#imgSpell_Sleep').css('left', 32*3);
 	$('#imgSpell_Lightening').css('left', 48*3);
@@ -1730,6 +1736,12 @@ function playSong(newSong) {
 		<img id="imgSpell_Sleep" class="spellImage" src="./images/spell_sleep.png" />
 		<img id="imgSpell_Lightening" class="spellImage" src="./images/spell_lightening.png" />
 	</div>
+	<div id="divwizardSpellControls" class="playerControls" style="position: absolute;z-index: 120000;">
+		<div id="divKeySpell1" class="keyText">1</div>
+		<div id="divKeySpell2" class="keyText">2</div>
+		<div id="divKeySpell3" class="keyText">3</div>
+		<div id="divKeySpell4" class="keyText">4</div>
+	</div> 
 	<div id="divwizardControls" class="playerControls" style="background-image: url(./images/controls.png); position: absolute;z-index: 11000;">
 		<div id="divKeyUp" class="keyText">W</div>
 		<div id="divKeyLeft" class="keyText">A</div>
