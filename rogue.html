@@ -1,7 +1,16 @@
 <!DOCTYPE html>
+<!--
+	Two Friends, One Dungeon - an HTML5 game written for the Trials of Oryx
+	Copyright (C) 2013 Jonas "sanojian" Olmstead 
+	
+	Artwork - Oryx (http://oryxdesignlab.com/)
+	Music - Deceased Superior Technician (http://www.nosoapradio.us/)
+	
+	Thanks for buzzjs and craftyjs!
+-->
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-	<title>Oryx Rogue</title>
+	<title>Two Friends, One Dungeon</title>
 	<script type="text/javascript" src="./includes/crafty.js"></script>
 	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 	<script type="text/javascript" src="./dungeonGen.js"></script>
@@ -61,8 +70,21 @@ window.addEventListener("load", function(event) {
 	VIEW_HEIGHT = $(document).height();
 	Crafty.init(VIEW_WIDTH, VIEW_HEIGHT);
 	
+	g_game.wizardControls = getParameterByName('wizardControls').toUpperCase() || 'WASD';
+	if (getParameterByName('resetChars')) {
+		localStorage.saveGame = '';
+		localStorage.curLevel = 0;
+	}
+	
 	doCraftyInitialization();
 });
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
 
 function layoutGUI() {
 	$('#divGUI').show();
@@ -178,17 +200,17 @@ function updateMiniMap() {
 		
 		for (var y=0;y<Dungeon.map_size;y++) {
 			for (var x=0;x<Dungeon.map_size;x++) {
+				context.fillStyle = '#000';
 				if (g_game.mapReveal[y][x]) {
 					var tile = Dungeon.map[x][y];
-					context.fillStyle = '#000';
 					if (tile == 1) {
 						context.fillStyle = '#005784';
 					}
 					else if (tile == 2) {
 						context.fillStyle = '#31A2F2';
 					}
-					context.fillRect(x*6,y*3,6,3);
 				}
+				context.fillRect(x*6,y*3,6,3);
 			}
 		}
 		if (g_game.mapReveal[g_game.entrance.y/TILE_HEIGHT][g_game.entrance.x/TILE_WIDTH]) {
@@ -392,6 +414,9 @@ function doCraftyInitialization() {
 			}
 		},
 		doDestroy: function() {
+			if (this.iAmBoss) {
+				g_game.exit.removeComponent('exit_closed').addComponent('exit');
+			}
 			this.destroy();
 		}
 	});
@@ -1139,6 +1164,15 @@ function doCraftyInitialization() {
 		Dungeon.Clear();
 		Dungeon.Generate();
 		
+		/*if (g_game.mapReveal) {
+			for (var y=0;y<g_game.mapReveal.length;y++) {
+				for (var x=0;x<g_game.mapReveal[y].length;x++) {
+					g_game.mapReveal[y][x] = false;
+				}
+			}
+		}
+		else {
+		}*/
 		g_game.mapReveal = [];
 		
 		var bEntrancePlaced = false;
@@ -1194,24 +1228,24 @@ function doCraftyInitialization() {
 				if (Dungeon.map[x][y] == 1) {
 					if (!bWizardPlaced) {
 						g_game.wizard = Crafty.e('Wizard')
-							.Wizard(x, y, 'WASD12345');
+							.Wizard(x, y, g_game.wizardControls);
 						bWizardPlaced = true;
 					}
 					else if (!bFighterPlaced) {
 						g_game.fighter = Crafty.e('Fighter')
 							.Fighter(x, y, String.fromCharCode(38) + String.fromCharCode(37) + String.fromCharCode(40) + String.fromCharCode(39));
 						bFighterPlaced = true;
-						g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
+						// for testing
+						/*g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
 							.attr({ x: (x+1)*TILE_WIDTH, y: y*TILE_HEIGHT, z: 90})
 							.collision()
-							.LitObject();
+							.LitObject();*/
 					}
 				}
 			}
 		}
 		
 		restorePlayers();
-		centerOnPlayers();
 		
 		var bBossPlaced = false;
 		var bExitPlaced = false;
@@ -1227,18 +1261,19 @@ function doCraftyInitialization() {
 							var mob = dungeonLevel.mobs[i];
 							if (rand < mob.prob + chanceTotal) {
 								if (!bExitPlaced) {
-									/*g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit, Collision, LitObject')
+									g_game.exit = Crafty.e('2D, ' + RENDERING_MODE + ', exit_closed, Collision, LitObject')
 										.attr({ x: x*TILE_WIDTH, y: y*TILE_HEIGHT, z: 90})
 										.collision()
-										.LitObject();*/
+										.LitObject();
 									bExitPlaced = true;
 									bMobPlaced = true;
 								}
 								else if (!(i==0 && bBossPlaced)) {
-									Crafty.e('Creature').Creature(x, y, mob);
+									var placedMob = Crafty.e('Creature').Creature(x, y, mob);
 									bMobPlaced = true;
 									if (i==0) {
 										bBossPlaced = true;
+										placedMob.iAmBoss = true;
 									}
 								}
 							}
@@ -1256,7 +1291,7 @@ function doCraftyInitialization() {
 		var pos = $('#cr-stage').offset();
 		$('#canvasMiniMap').css({ width: Dungeon.map_size*3, height: Dungeon.map_size*3, left: pos.left+6*3, top: pos.top + $('#cr-stage').height() - Dungeon.map_size*3 - 3*3 });
 		
-		updateMiniMap();
+		centerOnPlayers();
 		fadeOutControls();
 	
 	});
@@ -1279,6 +1314,7 @@ function doCraftyInitialization() {
 			,'./audio/sfx/lightening.wav',' ./audio/sfx/lightening_strike.wav'
 			,'./images/oryx_roguelike_b_graveyard.png', './images/oryx_roguelike_b_catacombs.png'
 			,'./images/oryx_roguelike_b_castle.png','./images/oryx_roguelike_b_temple.png'
+			,'./images/oryx_roguelike_b_landmark.png'
 			,'./images/oryx_roguelike_portraits.png'
 			,'./audio/music/DST-TheHauntedChapel.mp3'
 			], function() {
@@ -1435,26 +1471,38 @@ function doCraftyInitialization() {
 				ceiling_mud: [13*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				floor_mouldy: [9*TILE_WIDTH, 12*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				entrance: [8*TILE_WIDTH, 14*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
+				exit_closed: [7*TILE_WIDTH, 16*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 				exit: [14*TILE_WIDTH, 16*TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT],
 			});
 
 			Crafty.sprite(1, './images/oryx_roguelike_b_graveyard.png', {
 				scene_entrance1: [24, 168, 240, 120],
+				scene_entrance2: [24, 310, 240, 120],
 				scene_graveyard: [24, 456, 240, 120]
 			});
 
 			Crafty.sprite(1, './images/oryx_roguelike_b_catacombs.png', {
-				scene_catacombs1: [24, 312, 240, 120]
+				scene_catacombs1: [24, 312, 240, 120],
+				scene_catacombs2: [24, 24, 240, 120],
+				scene_catacombs3: [24, 456, 240, 120]
 			});
 			
 			Crafty.sprite(1, './images/oryx_roguelike_b_castle.png', {
-				scene_castle1: [24, 744, 240, 120]
+				scene_castle1: [24, 744, 240, 120],
+				scene_castle2: [24, 168, 240, 120],
+				scene_castle3: [24, 312, 240, 120]
 			});
 
 			Crafty.sprite(1, './images/oryx_roguelike_b_temple.png', {
-				scene_temple1: [24, 312, 240, 120]
+				scene_temple1: [24, 312, 240, 120],
+				scene_temple2: [24, 24, 240, 120],
+				scene_temple3: [24, 168, 240, 120]
 			});
 			
+			Crafty.sprite(1, './images/oryx_roguelike_b_landmark.png', {
+				scene_landmark1: [24, 456, 240, 120],
+			});
+
 			
 			g_game.sounds.swing1 = new buzz.sound( "./audio/sfx/swing1", {
 				formats: [ "wav" ]
@@ -1537,8 +1585,19 @@ function doCraftyInitialization() {
 		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic1)
 			.attr({ x: VIEW_WIDTH/2 - 240/2, y: VIEW_HEIGHT/3 - 120/2, z: 1 })
 			
+		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic2)
+			.attr({ x: VIEW_WIDTH/2 - 2*240 + 60, y: VIEW_HEIGHT/3, z: 1 })
 
-		Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: VIEW_WIDTH, x: 0, y: 64, z: 1000 })
+		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic3)
+			.attr({ x: VIEW_WIDTH/2 + 240 - 60, y: VIEW_HEIGHT/3, z: 1 })
+
+		var speakers = {};
+		speakers.fighter = Crafty.e('2D, ' + RENDERING_MODE + ', portrait_fighter')
+			.attr({ x: VIEW_WIDTH/2 + 108/2, y: VIEW_HEIGHT/2, z: 10 })
+		speakers.wizard = Crafty.e('2D, ' + RENDERING_MODE + ', portrait_wizard')
+			.attr({ x: VIEW_WIDTH/2 - 3*108/2, y: VIEW_HEIGHT/2, z: 10 })
+
+			Crafty.e('2D, ' + RENDERING_MODE + ', Text').attr({ w: VIEW_WIDTH, x: 0, y: 64, z: 1000 })
 			.text("Two Friends, One Dungeon")
 			.textColor('#9D9D9D', 1)
 			.textFont({ size: "32pt", weight: 'bold', family: GAME_FONT })
@@ -1570,6 +1629,12 @@ function doCraftyInitialization() {
 		
 		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic1)
 			.attr({ x: VIEW_WIDTH/2 - 240/2, y: VIEW_HEIGHT/3 - 120/2, z: 1 })
+
+		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic2)
+			.attr({ x: VIEW_WIDTH/2 - 2*240 + 60, y: VIEW_HEIGHT/3, z: 1 })
+
+		Crafty.e('2D, ' + RENDERING_MODE + ', ' + GAME.DUNGEONLEVELS[g_game.curLevel].sceneInfo.pic3)
+			.attr({ x: VIEW_WIDTH/2 + 240 - 60, y: VIEW_HEIGHT/3, z: 1 })
 			
 		var speakers = {};
 		speakers.fighter = Crafty.e('2D, ' + RENDERING_MODE + ', portrait_fighter')
@@ -1601,7 +1666,13 @@ function doCraftyInitialization() {
 					.css({ 'text-align': 'center'})
 					.bind('KeyDown', function(evt) {
 						if (evt.key == Crafty.keys.SPACE) {
-							Crafty.scene("main");
+							if (g_game.curLevel == GAME.DUNGEONLEVELS.length-1) {
+								localStorage.curLevel = 0;
+								Crafty.scene("intro");
+							}
+							else {
+								Crafty.scene("main");
+							}
 						}
 					})
 			}

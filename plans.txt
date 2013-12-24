@@ -2,13 +2,9 @@ PLANS
 
 NICE
 -potions
--must kill boss to open exit
--3 window spash screens
--alt key layout
 -boss taunts
 -astar
+-mute button
 
 MUST
--win screen
--move exits to correct pos
--screenshot
+

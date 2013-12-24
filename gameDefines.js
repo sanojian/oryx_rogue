@@ -145,8 +145,8 @@ window.GAME = {
 			song: 'DST-TheHauntedChapel',
 			sceneInfo: {
 				pic1: 'scene_entrance1',
-				pic2: 'scene_entrance2',
-				pic3: 'scene_entrance3',
+				pic2: 'scene_graveyard',
+				pic3: 'scene_entrance2',
 				dialog: [
 					{ speaker: 'fighter', text: 'We found it!' },
 					{ speaker: 'wizard', text: 'I am not so sure about this.' }
@@ -169,6 +169,8 @@ window.GAME = {
 			song: 'DST-ClockTower',
 			sceneInfo: {
 				pic1: 'scene_catacombs1',
+				pic2: 'scene_catacombs2',
+				pic3: 'scene_catacombs3',
 				dialog: [
 					{ speaker: 'wizard', text: 'Undead here.' },
 					{ speaker: 'wizard', text: 'We need a plan.' },
@@ -194,6 +196,8 @@ window.GAME = {
 			song: 'DST-Azum',
 			sceneInfo: {
 				pic1: 'scene_castle1',
+				pic2: 'scene_castle2',
+				pic3: 'scene_castle3',
 				dialog: [
 					{ speaker: 'wizard', text: 'I think I smell orcs.' },
 					{ speaker: 'fighter', text: '...' },
@@ -220,6 +224,8 @@ window.GAME = {
 			song: 'DST-WaterTemple-I',
 			sceneInfo: {
 				pic1: 'scene_catacombs1',
+				pic2: 'scene_catacombs3',
+				pic3: 'scene_catacombs2',
 				dialog: [
 					{ speaker: 'fighter', text: 'Skeletons again?' },
 					{ speaker: 'wizard', text: 'They look angry this time.' }
@@ -243,6 +249,8 @@ window.GAME = {
 			song: 'DST-Alters',
 			sceneInfo: {
 				pic1: 'scene_temple1',
+				pic2: 'scene_temple2',
+				pic3: 'scene_temple3',
 				dialog: [
 					{ speaker: 'wizard', text: 'This looks dangerous.' },
 					{ speaker: 'fighter', text: 'For once I agree.' },
@@ -252,10 +260,24 @@ window.GAME = {
 					{ speaker: 'fighter', text: 'Its a deal!' }
 				]
 			}
+		},
+		{
+			name: 'You Saved the Kingdom!',
+			song: 'DST-TheHauntedChapel',
+			sceneInfo: {
+				pic1: 'scene_landmark1',
+				dialog: [
+					{ speaker: 'wizard', text: 'We saved the Kingdom!' },
+					{ speaker: 'fighter', text: '...' },
+					{ speaker: 'fighter', text: 'Which Kingdom?' },
+					{ speaker: 'wizard', text: 'You know, your leige?' },
+					{ speaker: 'wizard', text: 'Your royal highness, and court?' },
+					{ speaker: 'fighter', text: '...' },
+					{ speaker: 'wizard', text: 'Well good job anyway.' },
+					{ speaker: 'fighter', text: 'Thanks!  You too.' }
+				]
+			}
 		}
-	],
-	SPLASHES: [
-		
 	]
 
 
